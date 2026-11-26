@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Player Categorization & Tagging System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Armenian:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0A0A; --surface:#141312; --surface-2:#1F1D1B; --border:rgba(255,255,255,.09); --border-strong:rgba(255,255,255,.17);
+  --text:#F5F0EA; --muted:#BDB3A7; --faint:#877D72;
+  --accent:#FF7A1A; --accent-2:#FFA14D; --accent-rgb:255,122,26;
+  --critical:#EF4444; --critical-rgb:239,68,68;
+  --high:#F97316; --high-rgb:249,115,22;
+  --medium:#EAB308; --medium-rgb:234,179,8;
+  --warning:#A855F7; --warning-rgb:168,85,247;
+  --tool:#38BDF8; --tool-rgb:56,189,248;
+  --s-active:#22C55E; --s-review:#38BDF8; --s-restricted:#F59E0B; --s-blocked:#EF4444; --s-pending:#94A3B8;
+  --radius:14px;
+  --sans:'Inter','Noto Sans Armenian',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono','Fira Code','Noto Sans Armenian',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+h1,h2,h3,h4,p{margin:0}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--accent);color:#0b0b0b;padding:8px 14px;border-radius:8px;z-index:50}
+.skip:focus{left:12px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+
+.sev-critical{--sc:var(--critical);--sc-rgb:var(--critical-rgb)}
+.sev-high{--sc:var(--high);--sc-rgb:var(--high-rgb)}
+.sev-medium{--sc:var(--medium);--sc-rgb:var(--medium-rgb)}
+.sev-warning{--sc:var(--warning);--sc-rgb:var(--warning-rgb)}
+.sev-tool{--sc:var(--tool);--sc-rgb:var(--tool-rgb)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--sc);background:rgba(var(--sc-rgb),.15);border:1px solid rgba(var(--sc-rgb),.35)}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sc)}
+
+/* account-state colours */
+.state-active{--stc:var(--s-active)} .state-review{--stc:var(--s-review)} .state-restricted{--stc:var(--s-restricted)} .state-blocked{--stc:var(--s-blocked)} .state-pending{--stc:var(--s-pending)}
+.state-badge{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px;color:var(--stc)}
+.state-badge::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--stc);box-shadow:0 0 0 3px color-mix(in srgb,var(--stc) 25%,transparent)}
+
+/* header */
+.top{background:#000;border-bottom:3px solid var(--accent);padding:28px 0 24px}
+.top-in{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.eyebrow{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--accent-2);padding:4px 12px;border:1px solid rgba(var(--accent-rgb),.4);border-radius:999px;background:rgba(var(--accent-rgb),.1);margin-bottom:12px}
+h1{font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);margin-top:8px;max-width:72ch}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:500;font-size:14px;transition:background .15s,border-color .15s}
+.btn:hover{background:#2a2622;border-color:rgba(var(--accent-rgb),.6)}
+.btn svg{width:16px;height:16px;flex:none}
+.btn-accent{background:var(--accent);border-color:var(--accent);color:#0b0b0b;font-weight:600}
+.btn-accent:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn-ghost{background:transparent}
+.btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.kpi-v{font-size:28px;font-weight:700;line-height:1.1;color:var(--accent-2)}
+.kpi-v small{font-size:15px;font-weight:600;color:var(--text);margin-left:6px}
+.kpi-s{color:var(--muted);font-size:13px;margin-top:6px}
+
+/* tabs */
+.tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);padding:5px;border-radius:12px;width:fit-content;max-width:100%;overflow-x:auto;margin-bottom:20px}
+.tab{border:0;background:transparent;color:var(--muted);padding:9px 18px;border-radius:9px;cursor:pointer;font-weight:500;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{background:var(--accent);color:#0b0b0b;font-weight:600}
+.panel{padding-bottom:40px}
+.print-only{display:none}
+
+/* toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-bottom:14px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--border-strong);background:var(--surface);color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;font-size:13.5px;font-weight:500;transition:border-color .15s,color .15s,background .15s}
+.chip:hover{color:var(--text);border-color:rgba(var(--accent-rgb),.6)}
+.chip[aria-pressed="true"]{color:var(--text);background:var(--surface-2);border-color:var(--accent)}
+.chip[class*="sev-"][aria-pressed="true"]{border-color:var(--sc);background:rgba(var(--sc-rgb),.15);color:var(--sc)}
+.chip .cnt{opacity:.7;font-weight:400;margin-left:4px}
+.search{background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;padding:8px 14px;color:var(--text);min-width:260px}
+.search::placeholder{color:var(--faint)}
+.filter-note{color:var(--faint);font-size:13px;margin-bottom:14px}
+
+/* accordions */
+.cat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+.cat.open{border-color:rgba(var(--accent-rgb),.45)}
+.cat-head{font-size:inherit;font-weight:inherit}
+.cat-toggle{all:unset;box-sizing:border-box;display:flex;width:100%;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;cursor:pointer}
+.cat-toggle:hover{background:rgba(var(--accent-rgb),.06)}
+.cat-toggle:focus-visible{outline:2px solid var(--accent-2);outline-offset:-2px}
+.cat-title{font-size:18px;font-weight:600}
+.cat-desc{color:var(--muted);font-size:13.5px;margin-top:2px}
+.cat-meta{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;white-space:nowrap}
+.count-badge{font-family:var(--mono);font-size:12px;color:var(--accent-2);background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent-rgb),.35);border-radius:999px;padding:2px 10px}
+.chev{width:10px;height:10px;border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(45deg);transition:transform .2s}
+.cat.open .chev{transform:rotate(225deg)}
+.cat-body{display:none;padding:4px 22px 22px;border-top:1px solid var(--border)}
+.cat.open .cat-body{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card h3{font-family:var(--mono);font-size:12.5px;font-weight:500;line-height:1.55;word-break:break-word;color:#FFD9BD}
+.slug{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:4px}
+.lbl{font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:2px}
+.card p{font-size:14px}
+.card .not p{color:var(--muted)}
+.impact{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+code,.code{font-family:var(--mono);font-size:12.5px;background:#050505;border:1px solid var(--border);padding:2px 8px;border-radius:6px;color:#FFD9BD}
+.bar{display:flex;height:6px;border-radius:99px;overflow:hidden;background:#050505;margin:6px 0 4px}
+.bar i{display:block;height:100%}
+.bar .b{background:var(--s-blocked)} .bar .t{background:var(--s-restricted)} .bar .a{background:var(--s-active)} .bar .o{background:var(--faint)}
+.obs-t{font-size:12.5px;color:var(--muted)}
+.subs{display:flex;flex-wrap:wrap;gap:6px}
+.sub-chip{font-size:12px;padding:2px 9px;border-radius:6px;background:rgba(var(--accent-rgb),.1);border:1px solid rgba(var(--accent-rgb),.3);color:#FFC9A1}
+.flag{font-size:12px;padding:2px 9px;border-radius:6px;background:rgba(var(--medium-rgb),.12);border:1px solid rgba(var(--medium-rgb),.4);color:var(--medium)}
+.card-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:auto;font-size:12.5px;color:var(--faint)}
+.card-foot .btn{padding:4px 10px;font-size:12.5px}
+
+/* simulator */
+.box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.box h2{font-size:16px;font-weight:600;margin-bottom:12px}
+.box-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.box-head h2{margin:0}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.preset{border:1px solid var(--border-strong);background:var(--bg);color:var(--text);padding:7px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;text-align:left;transition:border-color .15s,background .15s}
+.preset:hover{border-color:rgba(var(--accent-rgb),.7)}
+.preset[aria-pressed="true"]{border-color:var(--accent);background:rgba(var(--accent-rgb),.16)}
+.sim{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:20px;align-items:start;margin-top:16px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.sel-cat + .sel-cat{margin-top:16px}
+legend{font-size:13px;font-weight:600;color:var(--muted);padding:0;margin-bottom:8px}
+.sel-rows{display:flex;flex-direction:column;gap:8px}
+.sel-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{position:relative;display:inline-block;max-width:100%}
+.pill input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.pill span{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:12px;border:1px solid var(--border-strong);background:var(--bg);font-family:var(--mono);font-size:12.5px;line-height:1.45;transition:border-color .15s,background .15s;word-break:break-word}
+.pill span::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--sc)}
+.pill:hover span{border-color:rgba(var(--accent-rgb),.7)}
+.pill input:checked + span{border-color:var(--sc);background:rgba(var(--sc-rgb),.16);color:#fff}
+.pill input:focus-visible + span{outline:2px solid var(--accent-2);outline-offset:2px}
+select.variant,.field input[type=text]{background:#050505;border:1px solid var(--border-strong);border-radius:8px;padding:5px 9px;font-size:13px;color:var(--text)}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.field input[type=text]{width:100%;padding:9px 12px;font-family:var(--mono)}
+.hint{font-size:12.5px;color:var(--faint);margin-top:6px}
+.out{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+.state-card{border-radius:12px;padding:16px 18px;background:rgba(var(--accent-rgb),.07);border:1px solid var(--border-strong);border-left:6px solid var(--stc,var(--faint))}
+.state-card .k{font-size:13px;color:var(--muted)}
+.state-card .v{font-size:24px;font-weight:700;line-height:1.25;margin-top:2px;color:var(--stc,var(--text))}
+.state-card .why{font-size:13.5px;color:var(--muted);margin-top:6px}
+.o-block{margin-top:18px}
+.o-block h3{font-size:13.5px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.o-tags{display:flex;flex-wrap:wrap;gap:8px;min-height:30px}
+.o-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;font-size:13px;background:rgba(var(--sc-rgb),.15);border:1px solid rgba(var(--sc-rgb),.5);max-width:100%}
+.o-tag > span{overflow-wrap:anywhere}
+.o-tag button{all:unset;flex:none;cursor:pointer;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:15px;line-height:1}
+.o-tag button:hover{background:rgba(255,255,255,.14);color:#fff}
+.o-tag button:focus-visible{outline:2px solid var(--accent-2)}
+.none-note{color:var(--faint);font-size:13.5px}
+.conf{margin-top:10px;font-size:13px;color:var(--medium);background:rgba(var(--medium-rgb),.1);border:1px solid rgba(var(--medium-rgb),.35);border-radius:8px;padding:8px 12px}
+.note{font-family:var(--mono);font-size:12.5px;line-height:1.65;background:#050505;border:1px solid var(--border-strong);border-radius:10px;padding:14px 16px;white-space:pre-wrap;word-break:break-word;margin:0;color:#FFE9D6;min-height:120px}
+.note .ph{color:var(--medium);background:rgba(var(--medium-rgb),.12);border-radius:4px;padding:0 3px}
+.note-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:10px}
+.toast{position:fixed;right:24px;bottom:24px;background:var(--surface-2);border:1px solid var(--accent);color:var(--text);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:60}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* matrix */
+.m-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:1080px}
+th,td{padding:12px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border);font-size:14px}
+th{font-size:13px;font-weight:600;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:rgba(var(--accent-rgb),.07)}
+tbody tr:last-child td{border-bottom:0}
+td.n{color:var(--faint);width:44px}
+.mini-tags{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font-size:12.5px;padding:2px 9px;border-radius:999px;color:var(--sc);background:rgba(var(--sc-rgb),.15);border:1px solid rgba(var(--sc-rgb),.4)}
+.fmt{font-family:var(--mono);font-size:12.5px;color:#FFC9A1}
+.empty-row td{text-align:center;color:var(--muted);padding:28px}
+.foot{margin-top:8px;padding:20px 0 40px;color:var(--faint);font-size:13px;border-top:1px solid var(--border)}
+
+/* multi-select selector */
+.preset-group + .preset-group{margin-top:14px}
+.preset-label{font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.ms + .ms{margin-top:16px}
+.ms-label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.ms-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:var(--bg);border:1px solid var(--border-strong);border-radius:10px;padding:10px 14px;cursor:pointer;color:var(--muted);font-size:14px;text-align:left;transition:border-color .15s}
+.ms-btn:hover{border-color:rgba(var(--accent-rgb),.7)}
+.ms-btn.has-sel{color:var(--text);border-color:rgba(var(--accent-rgb),.55)}
+.ms-btn[aria-expanded="true"] .chev{transform:rotate(225deg)}
+.ms-panel{margin-top:6px;background:var(--bg);border:1px solid var(--border-strong);border-radius:10px;padding:8px}
+.ms-filter{width:100%;background:#050505;border:1px solid var(--border-strong);border-radius:8px;padding:7px 10px;color:var(--text);margin-bottom:6px}
+.ms-list{display:flex;flex-direction:column;gap:2px;max-height:280px;overflow-y:auto}
+.ms-opt{display:flex;align-items:flex-start;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.ms-opt:hover{background:rgba(var(--accent-rgb),.1)}
+.ms-opt input{margin-top:3px;accent-color:var(--accent);flex:none}
+.ms-opt .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--sc);margin-top:6px}
+.ms-name{overflow-wrap:anywhere}
+.ms-foot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.ms-sel{font-size:12.5px;color:var(--faint);margin-top:6px;overflow-wrap:anywhere}
+.ms-sel:empty{display:none}
+.o-tag select.variant{padding:2px 6px;font-size:12px}
+
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.sim{grid-template-columns:1fr}.out{position:static;max-height:none;overflow:visible}}
+@media (max-width:640px){.wrap{padding:0 16px}.top-in{flex-direction:column}h1{font-size:23px}.kpis{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.cat-meta .cm-notes{display:none}.search{min-width:0;width:100%}}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;scroll-behavior:auto !important}}
+
+/* print: A4, white background */
+@media print{
+  @page{size:A4;margin:14mm}
+  :root{--bg:#fff;--surface:#fff;--surface-2:#f1f5f9;--border:#d5dbe5;--border-strong:#cbd5e1;--text:#0f172a;--muted:#475569;--faint:#64748b;--accent:#c24f00;--accent-2:#c24f00;--accent-rgb:194,79,0;
+    --critical:#b91c1c;--high:#c2410c;--medium:#8a6500;--warning:#7e22ce;--tool:#0369a1;--s-active:#15803d;--s-review:#0369a1;--s-restricted:#b45309;--s-blocked:#b91c1c;--s-pending:#64748b}
+  html,body{background:#fff !important;color:#0f172a;font-size:10.5pt}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .no-print,.skip,.tabs,.toolbar,.m-tools,.filter-note,.card-foot .btn,#panel-sim,.toast{display:none !important}
+  .top{background:#fff;border-bottom:3px solid #c24f00;padding:0 0 10px}
+  .wrap{max-width:none;padding:0}
+  h1{font-size:19pt}
+  .kpis{gap:8px;margin:12px 0}
+  .kpi{padding:10px 12px}
+  .kpi-v{font-size:18pt;color:#c24f00}
+  .panel[hidden]{display:block !important}
+  #panel-tax,#panel-matrix{display:block !important}
+  .print-only{display:block;font-size:14pt;font-weight:700;margin:16px 0 8px}
+  .cat{break-inside:auto;margin-bottom:10px}
+  .cat.is-hidden{display:block !important}
+  .card.is-hidden{display:flex !important}
+  .cat-toggle{padding:8px 12px}
+  .chev{display:none}
+  .cat-body{display:block !important;padding:2px 12px 12px}
+  .cards{grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+  .card{break-inside:avoid;padding:10px}
+  .card h3{color:#0f172a}
+  .card p{font-size:9.5pt}
+  code,.note,.fmt{background:#f1f5f9;border-color:#d5dbe5;color:#0f172a}
+  .tbl-wrap{overflow:visible}
+  table{min-width:0}
+  th{position:static}
+  th,td{padding:6px 8px;font-size:9pt}
+  tr{break-inside:avoid}
+  .col-act{display:none}
+  .foot{padding-top:8px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Անցնել բովանդակությանը</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div>
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="title"></h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <button class="btn btn-accent no-print" id="print-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg>
+      Տպել / Export PDF
+    </button>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <section class="kpis" id="kpis" aria-label="Ամփոփ ցուցանիշներ"></section>
+
+  <div class="tabs" role="tablist" aria-label="Բաժիններ">
+    <button class="tab" role="tab" id="tab-tax" data-tab="tax" aria-controls="panel-tax" aria-selected="true">1. Taxonomy Explorer (Կատեգորիաներ և Թեգեր)</button>
+    <button class="tab" role="tab" id="tab-sim" data-tab="sim" aria-controls="panel-sim" aria-selected="false" tabindex="-1">2. Live Flow Simulator (Սիմուլյատոր)</button>
+    <button class="tab" role="tab" id="tab-matrix" data-tab="matrix" aria-controls="panel-matrix" aria-selected="false" tabindex="-1">3. SOP Matrix (Գործառնական Քարտեզ)</button>
+  </div>
+
+  <!-- TAB 1 -->
+  <section class="panel" id="panel-tax" role="tabpanel" aria-labelledby="tab-tax">
+    <h2 class="print-only">Taxonomy Explorer (Կատեգորիաներ և Թեգեր)</h2>
+    <div class="toolbar">
+      <div class="seg" id="sev-filters" role="group" aria-label="Զտել ըստ ռիսկի մակարդակի"></div>
+      <input class="search" type="search" id="tag-search" placeholder="Որոնել թեգ, կոդ կամ նկարագրություն" aria-label="Որոնել թեգերում">
+      <div class="seg">
+        <button class="btn btn-sm" type="button" id="expand-all">Բացել բոլորը</button>
+        <button class="btn btn-sm" type="button" id="collapse-all">Փակել բոլորը</button>
+      </div>
+    </div>
+    <p class="filter-note" id="filter-note" aria-live="polite"></p>
+    <div id="taxonomy"></div>
+  </section>
+
+  <!-- TAB 2 -->
+  <section class="panel" id="panel-sim" role="tabpanel" aria-labelledby="tab-sim" hidden>
+    <div class="box">
+      <div class="box-head"><h2>Արագ Սցենարներ (Standard SOP Presets)</h2><button class="btn btn-sm btn-ghost" type="button" id="reset-btn">Մաքրել (Reset)</button></div>
+      <div id="presets"></div>
+    </div>
+    <div class="sim">
+      <div class="box">
+        <h2>Ընտրեք թեգերը ըստ կատեգորիաների</h2>
+        <div id="selector"></div>
+      </div>
+      <div class="out" id="out" aria-live="polite">
+        <div class="box">
+          <h2>Decision Engine (Սիմուլյացիայի Արդյունք)</h2>
+          <div class="state-card" id="state-card">
+            <div class="k">Հաշվի Կարգավիճակ (Account State)</div>
+            <div class="v" id="o-state">—</div>
+            <div class="why" id="o-why">Ընտրեք թեգ կամ արագ սցենար։</div>
+          </div>
+          <div class="o-block"><h3>Համակարգային Պատճառ (System Reason)</h3><code class="code" id="o-reason">—</code></div>
+          <div class="o-block">
+            <h3>Ընտրված Թեգեր (<span id="o-count">0</span>)</h3>
+            <div class="o-tags" id="o-tags"></div>
+            <div class="conf" id="o-conf" hidden></div>
+          </div>
+          <div class="o-block">
+            <div class="field">
+              <label for="ref-input">Reference / Ticket ID / Linked IDs</label>
+              <input type="text" id="ref-input" placeholder="TG-XXXXXX, կապակցված ID-ներ, գումար (օր. XXXX AMD)" autocomplete="off">
+              <p class="hint">TG / INC / RM թիքեթներ, կապակցված հաշիվների ID-ներ և գումար՝ մեկ տողում։ Դատարկ դեպքում նոթում մնում են դեղին նշումներ։</p>
+            </div>
+          </div>
+          <div class="o-block">
+            <h3>Գեներացված Casino Risk Նոթ (Standard Note)</h3>
+            <pre class="note" id="o-note" tabindex="0" aria-label="Գեներացված նոթ"></pre>
+            <div class="note-actions">
+              <span class="obs-t" id="o-obs"></span>
+              <button class="btn btn-accent" type="button" id="copy-btn">Պատճենել Casino Risk Նոթը (Copy Note)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3 -->
+  <section class="panel" id="panel-matrix" role="tabpanel" aria-labelledby="tab-matrix" hidden>
+    <h2 class="print-only">SOP Matrix (Գործառնական Քարտեզ)</h2>
+    <div class="m-tools">
+      <input class="search" type="search" id="m-search" placeholder="Որոնել սցենար, թեգ կամ պատճառ" aria-label="Որոնել մատրիցում">
+      <div class="seg" id="m-status" role="group" aria-label="Զտել ըստ Account State-ի"></div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th scope="col">#</th><th scope="col">Սցենար (Case Scenario)</th><th scope="col">Account State</th><th scope="col">System Reason</th><th scope="col">Պարտադիր Թեգեր (Multi-Tag Combination)</th><th scope="col">Reference Ֆորմատ</th><th scope="col" class="col-act"><span class="visually-hidden">Գործողություն</span></th></tr></thead>
+      <tbody id="m-body"></tbody>
+    </table></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* =====================================================================
+   RISK_DATA — single source of truth. Edit categories, tags, severity
+   rules, decision-engine priorities and SOP scenarios here only.
+   ===================================================================== */
+const RISK_DATA = {
+
+  /* ---- 1. Brand / titles ---- */
+  meta: {
+    eyebrow: 'TOTOGAMING | CASINO RISK MANAGEMENT',
+    title: 'Player Categorization & Tagging System',
+    subtitle: 'Casino Risk-ի նոթերի միասնական դասակարգման, թեգավորման և գործառնական SOP համակարգ՝ 24/7 աշխատանքի համար',
+    totalNotes: 30901,              // notes analysed
+    source: 'Casino_Risk.xlsx',
+    coveragePct: 100               // empty placeholder notes (".", "Այլ", "Other") and rare notes are not separate types; they are covered by the existing tags
+  },
+
+  /* ---- 2. Severity levels (colours live in CSS: .sev-<key>) ---- */
+  severities: {
+    critical: { label: 'Critical',     rank: 5 },
+    high:     { label: 'High',         rank: 4 },
+    medium:   { label: 'Medium',       rank: 3 },
+    warning:  { label: 'Warning',      rank: 2 },
+    tool:     { label: 'Tool/Process', rank: 1 }
+  },
+
+  /* ---- 3. Account states + priority (higher = stronger) ---- */
+  states: {
+    'Suspended / Blocked':          { priority: 5, css: 'blocked',    hy: 'Հաշիվը արգելափակված է' },
+    'Restricted / Withdrawal Hold': { priority: 4, css: 'restricted', hy: 'Գործարքները/դուրսբերումները սահմանափակված են' },
+    'Under Review':                 { priority: 3, css: 'review',     hy: 'Դեպքը ուսումնասիրվում է' },
+    'Pending Decision':             { priority: 2, css: 'pending',    hy: 'Տվյալներում օրինակ չկա. կանոնը պետք է հաստատվի' },
+    'Active':                       { priority: 1, css: 'active',     hy: 'Հաշիվը ակտիվ է' }
+  },
+
+  /* ---- 4. Decision-engine priority logic ----
+     Final Account State and System Reason come from the "driver" tag:
+       1) highest severity rank among selected tags
+       2) then strongest account-state priority
+       3) then the tag with more notes in the data
+     Each tag's own `state` is the majority PlayerStatus seen in the notes
+     (Blocked -> Suspended / Blocked, BlockedForTransaction -> Restricted /
+     Withdrawal Hold, Active -> Active), with explicit overrides for
+     "Under investigation" (Under Review), CD review (Withdrawal Hold) and
+     tags without data (Pending Decision). */
+  engine: { order: ['severity', 'statePriority', 'noteCount'] },
+
+  /* ---- 5. Categories ---- */
+  categories: [
+    { id: 'casino',       name: 'Casino Product & Game Fraud',        desc: 'Խարդախություն, գումարի փոխանցում, պայմանավորված խաղեր և պրովայդերի սահմանափակումներ' },
+    { id: 'kyc',          name: 'KYC & Identity Violation',           desc: 'Ինքնության խախտումներ և արգելափակումներ' },
+    { id: 'verification', name: 'Verification Flow & Account Status', desc: 'Վերիֆիկացիայի ընթացքը և հաշվի կարգավիճակը' },
+    { id: 'multi',        name: 'Multi-Account & Network',            desc: 'Կրկնակի և կապակցված հաշիվներ' },
+    { id: 'risk',         name: 'Risk Action Balance Adjustment',     desc: 'Հաշվեկշռի ճշգրտում ռիսկի գործողությամբ' }
+  ],
+  sharedGroup: { id: 'shared', name: 'Ընդհանուր թեգեր (բոլոր կատեգորիաներում)' },
+
+  /* ---- 6. Tags ----
+     label  = note wording as used in the notes (no IDs)
+     code   = system code, sev = severity key, state = account state it gives,
+     reason = system reason, ref = reference types, obs = [Active, Blocked,
+     BlockedForTransaction, Other] counts among the analysed notes.
+     Tags with cat:'shared' are shown inside every category. */
+  tags: [
+ {
+  "id": "black_list",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Black List",
+  "reason": "Blacklist",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հաշվի տերը ընդգրկված է սև ցուցակում։",
+  "not": "Երբ կա միայն կասկած առանց հաստատման («Under investigation»)։",
+  "action": "Կիրառել սև ցուցակի ներքին կանոնը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   31,
+   22,
+   0,
+   0
+  ],
+  "short": "Black List",
+  "code": "CAS-01",
+  "state": "Active"
+ },
+ {
+  "id": "bonus_fraud",
+  "cat": "casino",
+  "sev": "critical",
+  "label": "Bonus Fraud with",
+  "reason": "Bonus Fraud",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Կապակցված հաշիվներով բոնուսի չարաշահում. նոթում թվարկվում են ներգրավված հաշիվները։",
+  "not": "Երբ կա միայն կրկնակի հաշիվ առանց բոնուսի չարաշահման («Duplicate with»)։ Երբ սխեման refer-friend է կամ retention։",
+  "action": "Արգելափակել ներգրավված հաշիվները և թվարկել բոլորը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   12,
+   154,
+   0,
+   0
+  ],
+  "short": "Bonus Fraud with",
+  "code": "CAS-02",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "cashback_fraud",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Cashback Fraud",
+  "reason": "Cashback Fraud",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Քեշբեքի չարաշահում։ Տվյալներում դեռ չի հանդիպել։",
+  "not": "Երբ խախտումը բոնուսային է («Bonus Fraud with»)։",
+  "action": "Ներքին կանոն. տվյալներում օրինակ չկա։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "short": "Cashback Fraud",
+  "code": "CAS-03",
+  "state": "Pending Decision"
+ },
+ {
+  "id": "contracted_p2p",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Contracted P2P game with ******",
+  "reason": "Contracted P2P game",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Պայմանավորված (contracted) P2P խաղ նշված հաշիվների հետ։ Տվյալներում դեռ չի հանդիպել։",
+  "not": "Երբ պայմանավորվածությունը նկարագրված է «X, Y hashivneri xaxery…» նոթով։",
+  "action": "Ներքին կանոն. տվյալներում օրինակ չկա։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "short": "Contracted P2P game with",
+  "code": "CAS-04",
+  "state": "Pending Decision"
+ },
+ {
+  "id": "gumar",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Gumar e poxancvel *** ic *** in erkusin el zgushacneluc ev hashivnerum arka notery ditarkeluc heto yntacq ktrvi haytov ( *** dram bonusic )",
+  "reason": "Այլ",
+  "ref": [
+   "TRANSFER"
+  ],
+  "def": "Գումար է փոխանցվել մի հաշվից մյուսին («X ic Y in»)։ Փոխանցված գումարը հիմնականում ձևավորվել է բոնուսից («bonusic»)։",
+  "not": "Երբ կա միայն հաշիվների կապ առանց փոխանցման («Duplicate with»)։ Երբ փոխանցումը բոնուսի չարաշահման մաս է, ավելացրեք նաև «Bonus Fraud with»։",
+  "action": "Զգուշացնել երկու հաշիվների տերերին, ստուգել հաշիվների նոթերը, ապա ընթացք տալ հայտով (նոթի բնօրինակ ձևակերպում)։",
+  "variants": [
+   {
+    "id": "bonus",
+    "label": "Բոնուսից"
+   },
+   {
+    "id": "nobonus",
+    "label": "Բոնուսը չնշված"
+   },
+   {
+    "id": "paid",
+    "label": "Բոնուսից, Paid"
+   }
+  ],
+  "subs": [
+   "Բոնուսից",
+   "Բոնուսը չնշված",
+   "Paid"
+  ],
+  "obs": [
+   1243,
+   1299,
+   18,
+   0
+  ],
+  "short": "Gumar e poxancvel",
+  "code": "CAS-05",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "provider_blocked",
+  "cat": "casino",
+  "sev": "warning",
+  "label": "Provider Blocked /",
+  "reason": "Provider blocked",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Խաղացողին արգելափակվել է խաղային պրովայդերը (P2P / Multinetwork, Live Casino, Virtual Sport). հաշիվը մնում է ակտիվ։",
+  "not": "Երբ արգելափակվում է ամբողջ հաշիվը («Blocked / TG-»)։ Երբ կոնկրետ պրովայդերը Skill Games-ն է։",
+  "action": "Արգելափակել պրովայդերը՝ հաշիվը թողնելով Active։",
+  "variants": [
+   {
+    "id": "p2p",
+    "label": "P2PMultinetwork"
+   },
+   {
+    "id": "live",
+    "label": "Live Casino"
+   },
+   {
+    "id": "vs",
+    "label": "Virtual Sport product"
+   },
+   {
+    "id": "na",
+    "label": "Not actual"
+   }
+  ],
+  "subs": [
+   "P2PMultinetwork",
+   "Live Casino",
+   "Virtual Sport",
+   "Not actual"
+  ],
+  "obs": [
+   3030,
+   360,
+   0,
+   0
+  ],
+  "short": "Provider Blocked /",
+  "code": "CAS-06",
+  "state": "Active"
+ },
+ {
+  "id": "provider_skill",
+  "cat": "casino",
+  "sev": "warning",
+  "label": "Provider blocked / Skill Games",
+  "reason": "Provider blocked",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Խաղացողին արգելափակվել է Skill Games պրովայդերը։",
+  "not": "Երբ արգելափակված է այլ պրովայդեր («Provider Blocked /»)։",
+  "action": "Արգելափակել Skill Games-ը՝ հաշիվը թողնելով Active։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   78,
+   9,
+   1,
+   0
+  ],
+  "short": "Provider blocked / Skill Games",
+  "code": "CAS-07",
+  "state": "Active"
+ },
+ {
+  "id": "refer_fraud",
+  "cat": "casino",
+  "sev": "critical",
+  "label": "Refer Friend Fraud with id*** id ***",
+  "reason": "Refer Friend Fraud",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Refer-a-friend ծրագրի չարաշահում. հիմնականում մեծ խումբ կապակցված հաշիվներ։",
+  "not": "Սովորական բոնուսի չարաշահում («Bonus Fraud with»)։",
+  "action": "Արգելափակել խմբի հաշիվները և թվարկել դրանք։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   10,
+   83,
+   0,
+   0
+  ],
+  "short": "Refer Friend Fraud with",
+  "code": "CAS-08",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "blocked_refer",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Blocked for Refer Friend Fraud",
+  "reason": "Blocked for Refer Friend Fraud",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հաշիվը արգելափակված է Refer-a-friend խարդախության պատճառով։",
+  "not": "Երբ խարդախությունը միայն նշվում է հաշիվների ցանկով («Refer Friend Fraud with»)։",
+  "action": "Գրանցել արգելափակման պատճառը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   5,
+   1,
+   0,
+   0
+  ],
+  "short": "Blocked for Refer Friend Fraud",
+  "code": "CAS-09",
+  "state": "Active"
+ },
+ {
+  "id": "retention_fraud",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Retention Fraud with",
+  "reason": "Retention Fraud",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Retention բոնուսի չարաշահում կապակցված հաշիվներով։",
+  "not": "Սովորական բոնուսի չարաշահում («Bonus Fraud with»)։",
+  "action": "Թվարկել ներգրավված հաշիվները և կիրառել խարդախության կանոնը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   22,
+   0,
+   0,
+   0
+  ],
+  "short": "Retention Fraud with",
+  "code": "CAS-10",
+  "state": "Active"
+ },
+ {
+  "id": "tech_issue",
+  "cat": "casino",
+  "sev": "tool",
+  "label": "Tech issue / (INC - ,RM- , ect...)",
+  "reason": "Tech issue",
+  "ref": [
+   "TICKET"
+  ],
+  "def": "Տեխնիկական խնդիր խաղում կամ համակարգում՝ INC- կամ RM- թիքեթի հղումով։",
+  "not": "Երբ խնդիրը խաղացողի վարքի մասին է։",
+  "action": "Գործողություն չկա. կցել INC / RM թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   6,
+   0,
+   0,
+   0
+  ],
+  "short": "Tech issue /",
+  "code": "CAS-11",
+  "state": "Active"
+ },
+ {
+  "id": "opposite",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Opposite beting with",
+  "reason": "Opposite betting",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Հաշիվը խաղադրույքներ է կատարել հակադիր ելքերի վրա նշված հաշիվների հետ։",
+  "not": "Երբ պայմանավորվածությունը հաստատված է («X, Y hashivneri xaxery…»)։",
+  "action": "Վերանայել խաղադրույքները և ըստ արդյունքի փոխարինել ճշգրիտ նոթով։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "short": "Opposite beting with",
+  "code": "CAS-12",
+  "state": "Active"
+ },
+ {
+  "id": "collusion_xy",
+  "cat": "casino",
+  "sev": "high",
+  "label": "X, Y hashivneri xaxery ditarkvel en vorpes paymanavorvac , erkusin el zgushacnel , toxnel hamapatasxan notery",
+  "reason": "Այլ",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Հաշիվների խաղերը դիտարկվել են որպես պայմանավորված (համաձայնեցված խաղ)։",
+  "not": "Երբ կա միայն հակադիր խաղադրույք («Opposite beting with»)։",
+  "action": "Զգուշացնել երկու հաշիվների տերերին և թողնել համապատասխան նոթերը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   54,
+   9,
+   0,
+   0
+  ],
+  "short": "X, Y hashivneri xaxery…",
+  "code": "CAS-13",
+  "state": "Active"
+ },
+ {
+  "id": "cd_review",
+  "cat": "casino",
+  "sev": "warning",
+  "label": "Kanxikacumnery miayn CD-ic heto (Դուրսբերումներ՝ CD-ի վերանայում, չվճարել)",
+  "reason": "Այլ",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Դուրսբերումները հաստատվում են միայն CD-ի վերանայումից հետո. մինչ այդ չվճարել։",
+  "not": "Երբ դուրսբերումը ընդհանրապես արգելված է։",
+  "action": "Դուրսբերումները ուղարկել CD-ի վերանայման։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   5,
+   1,
+   0,
+   0
+  ],
+  "short": "Kanxikacumnery miayn CD-ic heto",
+  "code": "CAS-14",
+  "state": "Restricted / Withdrawal Hold"
+ },
+ {
+  "id": "fyi_warn",
+  "cat": "casino",
+  "sev": "warning",
+  "label": "FYI/xist zgushacnel voric heto kditarkvi vcharumy",
+  "reason": "FYI",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Խստորեն զգուշացնել օգտատիրոջը. վճարումը կվերանայվի զգուշացումից հետո։",
+  "not": "Երբ կա սովորական տեղեկատվական նոթ («Informative»)։",
+  "action": "Զգուշացնել օգտատիրոջը, վճարումը վերանայել հետո։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   9,
+   8,
+   0,
+   0
+  ],
+  "short": "FYI/xist zgushacnel…",
+  "code": "CAS-15",
+  "state": "Active"
+ },
+ {
+  "id": "rake_race",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Rake race fraud with",
+  "reason": "Rake race fraud",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Rake race-ի չարաշահում կապակցված հաշիվներով։",
+  "not": "Սովորական բոնուսի չարաշահում («Bonus Fraud with»)։",
+  "action": "Թվարկել ներգրավված հաշիվները։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   3,
+   0,
+   0,
+   0
+  ],
+  "short": "Rake race fraud with",
+  "code": "CAS-16",
+  "state": "Active"
+ },
+ {
+  "id": "tournament_fraud",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Tournament fraud",
+  "reason": "Tournament fraud",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Մրցաշարի (tournament) խարդախություն։",
+  "not": "Rake race-ի չարաշահում («Rake race fraud with»)։",
+  "action": "Կիրառել խարդախության ներքին կանոնը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "short": "Tournament fraud",
+  "code": "CAS-17",
+  "state": "Active"
+ },
+ {
+  "id": "fraud_user",
+  "cat": "casino",
+  "sev": "critical",
+  "label": "Fraud user",
+  "reason": "Fraud user",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հաշիվը նշված է որպես խարդախ օգտատեր։",
+  "not": "Երբ հաշիվը կեղծ տվյալներով է («Verification / Fake user»)։",
+  "action": "Արգելափակել հաշիվը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   3,
+   0,
+   0
+  ],
+  "short": "Fraud user",
+  "code": "CAS-18",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "abuse",
+  "cat": "casino",
+  "sev": "high",
+  "label": "Չարաշահում",
+  "reason": "Չարաշահում",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Չարաշահում առանց կոնկրետ սխեմայի նշման։",
+  "not": "Երբ սխեման հայտնի է (Bonus Fraud, Refer Friend Fraud, Rake race…)։",
+  "action": "Ճշգրտել չարաշահման տեսակը ավելի կոնկրետ նոթով։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   0,
+   0,
+   0
+  ],
+  "short": "Չարաշահում",
+  "code": "CAS-19",
+  "state": "Active"
+ },
+ {
+  "id": "blocked_tg",
+  "cat": "kyc",
+  "sev": "tool",
+  "label": "Blocked / TG-",
+  "reason": "Blocked",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաշիվը արգելափակված է. նոթը կապված է թիքեթի հետ։",
+  "not": "Երբ արգելափակվել է միայն պրովայդերը («Provider Blocked /»)։",
+  "action": "Գրանցել Blocked կարգավիճակը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   4,
+   240,
+   0,
+   0
+  ],
+  "short": "Blocked / TG-",
+  "code": "KYC-01",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "not_verified",
+  "cat": "kyc",
+  "sev": "warning",
+  "label": "NOT Verified / TG-",
+  "reason": "Not Verified",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաճախորդը չի անցել վերիֆիկացիան։",
+  "not": "Երբ KYC-ն սպասվում է («Waiting for KYC /TG-») կամ արդեն վերիֆիկացված է։",
+  "action": "Սահմանափակել մինչև վերիֆիկացիայի ավարտը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   19,
+   0,
+   0
+  ],
+  "short": "NOT Verified",
+  "code": "KYC-02",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "ayl_andz",
+  "cat": "kyc",
+  "sev": "high",
+  "label": "Verification / Ayl andz e ogtvum / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Վերիֆիկացիայի արդյունքում հաստատվել է, որ հաշվից օգտվում է ոչ թե տերը, այլ ուրիշ անձ։",
+  "not": "Երբ ստուգումը դեռ ընթացքի մեջ է («Zangov chshtel ov e ogtvum»)։ Երբ տերը մահացել է կամ հաշիվը կեղծ է։",
+  "action": "Արգելափակել հաշիվը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   19,
+   1393,
+   0,
+   0
+  ],
+  "short": "Verification / Ayl andz e ogtvum",
+  "code": "KYC-03",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "ayl_andz_rc",
+  "cat": "kyc",
+  "sev": "high",
+  "label": "Verification / Ayl andz e ogtvum (RETENTION CALL) / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Retention call-ի ժամանակ հաստատվել է, որ հաշվից օգտվում է ուրիշ անձ։",
+  "not": "Երբ նույնը հայտնաբերվել է սովորական վերիֆիկացիայում («Verification / Ayl andz e ogtvum / TG-»)։",
+  "action": "Արգելափակել հաշիվը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   466,
+   0,
+   0
+  ],
+  "short": "Verification / Ayl andz e ogtvum (RETENTION CALL)",
+  "code": "KYC-04",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "texyak",
+  "cat": "kyc",
+  "sev": "high",
+  "label": "Verification / Texyak che xaxayin hashvic (RETENTION CALL) / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Retention call-ի ժամանակ անձը հայտնել է, որ տեղյակ չէ իր անունով խաղային հաշվից։",
+  "not": "Երբ անձը ճանաչում է հաշիվը, բայց օգտվում է ուրիշը («Ayl andz e ogtvum»)։",
+  "action": "Արգելափակել հաշիվը և ստուգել՝ արդյոք այն բացվել է նրա տվյալներով։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   36,
+   0,
+   0
+  ],
+  "short": "Verification / Texyak che xaxayin hashvic (RETENTION CALL)",
+  "code": "KYC-05",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "fake_user",
+  "cat": "kyc",
+  "sev": "critical",
+  "label": "Verification / Fake user / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաշիվը բացված է կեղծ կամ գոյություն չունեցող անձի տվյալներով։",
+  "not": "Երբ տվյալները պարզապես չեն համընկնում («Tvyalneri anhamapatasxanutyun»)։ Երբ կա իրական տեր, որի հաշվից օգտվում է ուրիշ։",
+  "action": "Արգելափակել հաշիվը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   544,
+   0,
+   0
+  ],
+  "short": "Verification / Fake user",
+  "code": "KYC-06",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "tvyalneri",
+  "cat": "kyc",
+  "sev": "medium",
+  "label": "Verification / Tvyalneri anhamapatasxanutyun / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաշվի կամ KYC-ի տվյալները չեն համընկնում ներկայացված փաստաթղթերին կամ տիրոջ տվյալներին։",
+  "not": "Երբ փաստաթուղթը խմբագրված է («Photoshop with»)։ Երբ հաշիվը կեղծ է («Fake user»)։",
+  "action": "Պահել հաշիվը արգելափակված մինչև տվյալների ճշգրտումը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1,
+   124,
+   0,
+   0
+  ],
+  "short": "Verification / Tvyalneri anhamapatasxanutyun",
+  "code": "KYC-07",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "under21",
+  "cat": "kyc",
+  "sev": "high",
+  "label": "Verification / Under 21 / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Օգտատերը 21 տարեկանից փոքր է։",
+  "not": "Երբ տարիքը հաստատված է 21+։",
+  "action": "Արգելափակել հաշիվը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   3,
+   22,
+   0,
+   0
+  ],
+  "short": "Verification / Under 21",
+  "code": "KYC-08",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "dead",
+  "cat": "kyc",
+  "sev": "high",
+  "label": "Verification / User is dead / TG-",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաստատվել է (օրինակ՝ հարազատի հետ զանգով), որ հաշվի տերը մահացել է։",
+  "not": "Երբ կա միայն կասկած կամ հարազատը չի պատասխանել։ Երբ հաստատվել է retention call-ով («User is dead (RETENTION CALL)»)։",
+  "action": "Արգելափակել հաշիվը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   2,
+   409,
+   0,
+   0
+  ],
+  "short": "Verification / User is dead",
+  "code": "KYC-09",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "photoshop",
+  "cat": "kyc",
+  "sev": "medium",
+  "label": "Verification / Photoshop with ****** /",
+  "reason": "Verification",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Ներկայացված փաստաթուղթը խմբագրված է (Photoshop, այդ թվում՝ AI-ով) և կապված է նշված հաշվի հետ։",
+  "not": "Երբ տվյալները պարզապես չեն համընկնում («Tvyalneri anhamapatasxanutyun»)։",
+  "action": "Պահանջել նոր փաստաթուղթ, հաշիվը պահել սահմանափակված մինչև վերիֆիկացիան։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   21,
+   0,
+   0
+  ],
+  "short": "Verification / Photoshop with",
+  "code": "KYC-10",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "selfie",
+  "cat": "verification",
+  "sev": "medium",
+  "label": "Selfie",
+  "reason": "Verification",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Վերիֆիկացիան պահանջում է selfie. նոր selfie կամ selfie ընթացիկ ամսաթվով։",
+  "not": "Երբ փաստաթուղթը խմբագրված է («Photoshop with»)։",
+  "action": "Պահանջել selfie և շարունակել վերիֆիկացիան։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   3,
+   4,
+   0,
+   0
+  ],
+  "short": "Selfie",
+  "code": "VER-01",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "betshop",
+  "cat": "verification",
+  "sev": "medium",
+  "label": "Betshop verification /",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Վերիֆիկացիան կատարվում է Betshop-ի միջոցով։",
+  "not": "Երբ վերիֆիկացիան կատարվել է առանց Betshop-ի։ Երբ Betshop-ի հետ զանգով է («Betshop call verification /»)։",
+  "action": "Ավարտել Betshop վերիֆիկացիան և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   34,
+   299,
+   1,
+   0
+  ],
+  "short": "Betshop verification /",
+  "code": "VER-02",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "betshop_call",
+  "cat": "verification",
+  "sev": "medium",
+  "label": "Betshop call verification /",
+  "reason": "Verification",
+  "ref": [
+   "TG"
+  ],
+  "def": "Վերիֆիկացիան կատարվում է Betshop-ի հետ զանգով։",
+  "not": "Երբ վերիֆիկացիան կատարվում է Betshop-ում առանց զանգի («Betshop verification /»)։",
+  "action": "Ավարտել վերիֆիկացիան և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   7,
+   68,
+   0,
+   0
+  ],
+  "short": "Betshop call verification /",
+  "code": "VER-03",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "new_kyc",
+  "cat": "verification",
+  "sev": "warning",
+  "label": "New KYC",
+  "reason": "New KYC",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հաճախորդից պահանջվել է նոր KYC։",
+  "not": "Երբ KYC-ն արդեն սպասվում է («Waiting for KYC /TG-») կամ ավարտված է («Verified / TG-»)։",
+  "action": "Սահմանափակել մինչև նոր KYC-ի ստացումը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   10,
+   0,
+   0,
+   0
+  ],
+  "short": "New KYC",
+  "code": "VER-04",
+  "state": "Active"
+ },
+ {
+  "id": "verified",
+  "cat": "verification",
+  "sev": "tool",
+  "label": "Verified / TG-",
+  "reason": "Verified",
+  "ref": [
+   "TG"
+  ],
+  "def": "Վերիֆիկացիան հաջողությամբ ավարտվել է։",
+  "not": "Երբ KYC-ն սպասվում է կամ կա անհամապատասխանություն, կեղծ տվյալ կամ այլ ակտիվ խնդիր։",
+  "action": "Փակել վերիֆիկացիոն սահմանափակումը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   449,
+   122,
+   0,
+   0
+  ],
+  "short": "Verified",
+  "code": "VER-05",
+  "state": "Active"
+ },
+ {
+  "id": "waiting_kyc",
+  "cat": "verification",
+  "sev": "warning",
+  "label": "Waiting for KYC /TG-",
+  "reason": "Waiting for KYC",
+  "ref": [
+   "TG"
+  ],
+  "def": "Հաճախորդը դեռ չի ներկայացրել կամ չի անցել KYC։",
+  "not": "Երբ վերիֆիկացիան ավարտված է, կամ արդեն հայտնաբերվել է կեղծ կամ անհամապատասխան տվյալ։",
+  "action": "Սահմանափակել մինչև KYC-ի ավարտը և կցել թիքեթը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   27,
+   8371,
+   1,
+   0
+  ],
+  "short": "Waiting for KYC",
+  "code": "VER-06",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "zangov",
+  "cat": "verification",
+  "sev": "medium",
+  "label": "Zangov chshtel ov e ogtvum",
+  "reason": "Verification",
+  "ref": [
+   "TG_OPT"
+  ],
+  "def": "Հաճախորդին զանգել են՝ պարզելու, թե ով է իրականում օգտվում հաշվից։ Կիրառվում է ինքնության կասկածի դեպքում։",
+  "not": "Երբ զանգով արդեն հաստատվել է, որ օգտվում է ուրիշը («Ayl andz e ogtvum»)։",
+  "action": "Շարունակել վերիֆիկացիան և արդյունքի հիման վրա կիրառել վերջնական նոթը։",
+  "variants": [
+   {
+    "id": "",
+    "label": "Հիմնական"
+   },
+   {
+    "id": "blot",
+    "label": "+ Blot խաղից մանրամասն հարցեր"
+   }
+  ],
+  "subs": [
+   "+ Blot խաղից մանրամասն հարցեր"
+  ],
+  "obs": [
+   273,
+   1412,
+   0,
+   0
+  ],
+  "short": "Zangov chshtel ov e ogtvum",
+  "code": "VER-07",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "dead_rc",
+  "cat": "verification",
+  "sev": "high",
+  "label": "Verification / User is dead (RETENTION CALL)",
+  "reason": "Verification",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Retention call-ի ժամանակ հաստատվել է, որ հաշվի տերը մահացել է։",
+  "not": "Երբ հաստատվել է սովորական վերիֆիկացիայում («Verification / User is dead / TG-»)։",
+  "action": "Արգելափակել հաշիվը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   3,
+   177,
+   0,
+   0
+  ],
+  "short": "Verification / User is dead (RETENTION CALL)",
+  "code": "VER-08",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "reopen",
+  "cat": "verification",
+  "sev": "tool",
+  "label": "Verabacman entaka che (Չի ենթարկվում վերաբացման)",
+  "reason": "Այլ",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հաշիվը չի ենթարկվում վերաբացման։",
+  "not": "Երբ հաշիվը վերաբացվել է հաճախորդի խնդրանքով։",
+  "action": "Չվերաբացել հաշիվը։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   1,
+   0,
+   0
+  ],
+  "short": "Verabacman entaka che",
+  "code": "VER-09",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "aad",
+  "cat": "verification",
+  "sev": "tool",
+  "label": "Blocked From ActiveAccessDormant",
+  "reason": "Blocked From ActiveAccessDormant",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Հավանաբար համակարգի ավտոմատ գրառում հաշվի կարգավիճակի փոփոխության մասին։",
+  "not": "Ձեռքով արգելափակում. դրա համար օգտագործվում է «Blocked / TG-»։",
+  "action": "Գործողություն չի պահանջվում։ Գրառումը ցույց է տալիս, որ հաշիվը արգելափակվել է ActiveAccessDormant վիճակից։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   90,
+   0,
+   0
+  ],
+  "short": "Blocked From ActiveAccessDormant",
+  "code": "VER-10",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "duplicate",
+  "cat": "multi",
+  "sev": "high",
+  "label": "Duplicate with",
+  "reason": "Duplicate",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Նույն անձի մի քանի հաշիվ կամ իրար հետ կապակցված հաշիվներ։ Նոթում թվարկվում են կապակցված հաշիվները։",
+  "not": "Երբ կապը գումարի փոխանցումն է («Gumar e poxancvel…») կամ բոնուսի չարաշահումը («Bonus Fraud with»)։",
+  "action": "Թվարկել բոլոր կապակցված հաշիվները և ստուգել դրանք։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   1468,
+   2510,
+   25,
+   0
+  ],
+  "short": "Duplicate with",
+  "code": "NET-01",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "same_device",
+  "cat": "multi",
+  "sev": "high",
+  "label": "Same Device with",
+  "reason": "Same Device",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Նույն սարքից օգտվում են մի քանի հաշիվ։",
+  "not": "Երբ կապը միայն IP-ն է («Same IP with»)։",
+  "action": "Թվարկել կապակցված հաշիվները և ստուգել դրանք։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   10,
+   45,
+   0,
+   0
+  ],
+  "short": "Same Device with",
+  "code": "NET-02",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "same_ip",
+  "cat": "multi",
+  "sev": "medium",
+  "label": "Same IP with",
+  "reason": "Same IP",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Նույն IP-ից օգտվում են մի քանի հաշիվ։ Տվյալներում դեռ չի հանդիպել։",
+  "not": "Երբ կապը սարքն է («Same Device with»)։",
+  "action": "Թվարկել կապակցված հաշիվները։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "short": "Same IP with",
+  "code": "NET-03",
+  "state": "Pending Decision"
+ },
+ {
+  "id": "same_social",
+  "cat": "multi",
+  "sev": "high",
+  "label": "Same Social Card Number with",
+  "reason": "Same Social Card Number",
+  "ref": [
+   "IDS"
+  ],
+  "def": "Մի քանի հաշիվ գրանցված են նույն սոցիալական քարտի համարով։",
+  "not": "Երբ կապը սարքն է («Same Device with») կամ սովորական կրկնակի հաշիվ է («Duplicate with»)։",
+  "action": "Թվարկել կապակցված հաշիվները և ստուգել դրանք։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   102,
+   109,
+   8,
+   0
+  ],
+  "short": "Same Social Card Number with",
+  "code": "NET-04",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "balance_removal",
+  "cat": "risk",
+  "sev": "high",
+  "label": "Balance Removal Risk Action - *** AMD",
+  "reason": "Balance Removal Risk Action",
+  "ref": [
+   "AMT"
+  ],
+  "def": "Ռիսկի գործողությամբ հաշվից հանվել է գումար. նոթում նշվում է հանված գումարը AMD-ով։",
+  "not": "Երբ գումարը փոխանցվել է մեկ այլ հաշվի («Gumar e poxancvel…»)։",
+  "action": "Գրանցել հանված գումարը AMD-ով։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   4,
+   900,
+   57,
+   0
+  ],
+  "short": "Balance Removal Risk Action",
+  "code": "BAL-01",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "balance_adding",
+  "cat": "risk",
+  "sev": "high",
+  "label": "Balance adding Risk Action",
+  "reason": "Balance adding Risk Action",
+  "ref": [
+   "AMT"
+  ],
+  "def": "Ռիսկի գործողությամբ հաշվին ավելացվել է գումար. նոթում նշվում է գումարը AMD-ով։",
+  "not": "Երբ գումարը հանվել է («Balance Removal Risk Action»)։",
+  "action": "Գրանցել ավելացված գումարը AMD-ով։",
+  "variants": null,
+  "subs": [],
+  "obs": [
+   5,
+   5,
+   0,
+   0
+  ],
+  "short": "Balance adding Risk Action",
+  "code": "BAL-02",
+  "state": "Suspended / Blocked"
+ },
+ {
+  "id": "informative",
+  "cat": "shared",
+  "sev": "tool",
+  "label": "Informative (FYI /)",
+  "reason": "FYI",
+  "ref": [
+   "TG"
+  ],
+  "def": "Տեղեկատվական նոթ՝ թիքեթի հղումով, առանց գործողության։ Նշագրումը՝ «FYI /»։",
+  "not": "Երբ պահանջվում է գործողություն կամ կա վերիֆիկացիոն արդյունք։",
+  "action": "Գործողություն չկա. կցել թիքեթը։",
+  "variants": null,
+  "subs": [
+   "FYI / TG-"
+  ],
+  "obs": [
+   256,
+   371,
+   7,
+   1
+  ],
+  "short": "Informative (FYI /)",
+  "code": "ALL-01",
+  "state": "Active"
+ },
+ {
+  "id": "under_inv",
+  "cat": "shared",
+  "sev": "warning",
+  "label": "Under investigation",
+  "reason": "Under investigation",
+  "ref": [
+   "NONE"
+  ],
+  "def": "Դեպքը ուսումնասիրվում է, վերջնական նոթը դեռ չկա («Դիտարկվում է»)։",
+  "not": "Երբ արդյունքն արդեն հայտնի է. օգտագործեք վերջնական նոթը։",
+  "action": "Թողնել ժամանակավոր նոթ և փոխարինել վերջնականով, երբ դեպքը փակվի։",
+  "variants": null,
+  "subs": [
+   "Դիտարկվում է (ditarkvum e)"
+  ],
+  "obs": [
+   19,
+   4,
+   4,
+   0
+  ],
+  "short": "Under investigation",
+  "code": "ALL-02",
+  "state": "Under Review"
+ }
+],
+
+  /* ---- 7. Reference formats ---- */
+  refTypes: {
+    TG:       { fmt: 'TG-XXXXXX',                 sample: 'TG-XXXXXX' },
+    TG_OPT:   { fmt: 'TG-XXXXXX (ըստ ցանկության)', sample: 'TG-XXXXXX' },
+    TICKET:   { fmt: 'INC-XXXXXX / RM-XXXXXX',    sample: 'INC-XXXXXX' },
+    IDS:      { fmt: 'Linked ID: XXXXXX XXXXXX',  sample: 'XXXXXX XXXXXX' },
+    AMT:      { fmt: 'Amount: XXXX AMD',          sample: 'XXXX AMD' },
+    TRANSFER: { fmt: 'XXXXXX ic XXXXXX in / XXXX dram', sample: 'XXXXXX XXXXXX XXXX AMD' },
+    NONE:     { fmt: '—',                         sample: '' }
+  },
+
+  /* ---- 8. Tag conflicts shown as a warning in the simulator ---- */
+  conflicts: [
+    ['verified','waiting_kyc','«Verified» և «Waiting for KYC» միաժամանակ չեն կարող լինել։'],
+    ['verified','not_verified','«Verified» և «NOT Verified» հակասում են։'],
+    ['verified','fake_user','«Verified» և «Fake user» հակասում են։'],
+    ['verified','dead','«Verified» և «User is dead» հակասում են։'],
+    ['verified','tvyalneri','«Verified» և «Tvyalneri anhamapatasxanutyun» հակասում են։'],
+    ['ayl_andz','ayl_andz_rc','Երկու թեգն էլ նույն իմաստն ունեն. ընտրեք մեկը՝ ըստ այն բանի, թե վերիֆիկացիան retention call էր, թե ոչ։'],
+    ['dead','dead_rc','Երկու թեգն էլ նույն իմաստն ունեն. ընտրեք մեկը։'],
+    ['betshop','betshop_call','Betshop-ի վերիֆիկացիան կատարվել է կամ տեղում, կամ զանգով. ընտրեք մեկը։'],
+    ['collusion_xy','opposite','«X, Y hashivneri xaxery…» թեգը արդեն ներառում է հակադիր խաղադրույքը։']
+  ],
+
+  /* ---- 9. SOP scenarios (state / reason / reference format are derived
+         from the tags by the decision engine) ---- */
+  scenarios: [
+ {
+  "id": "s01",
+  "title": "Black List",
+  "cat": "casino",
+  "tags": {
+   "black_list": ""
+  }
+ },
+ {
+  "id": "s02",
+  "title": "Բոնուսի չարաշահում",
+  "cat": "casino",
+  "tags": {
+   "bonus_fraud": ""
+  }
+ },
+ {
+  "id": "s03",
+  "title": "Քեշբեքի չարաշահում",
+  "cat": "casino",
+  "tags": {
+   "cashback_fraud": ""
+  }
+ },
+ {
+  "id": "s04",
+  "title": "Պայմանավորված P2P խաղ (Contracted)",
+  "cat": "casino",
+  "tags": {
+   "contracted_p2p": ""
+  }
+ },
+ {
+  "id": "s05",
+  "title": "Գումար է փոխանցվել բոնուսից",
+  "cat": "casino",
+  "tags": {
+   "gumar": "bonus"
+  }
+ },
+ {
+  "id": "s06",
+  "title": "Բոնուսի չարաշահում՝ փոխանցում, Bonus Fraud և հաշվեկշռի հանում",
+  "cat": "casino",
+  "tags": {
+   "gumar": "bonus",
+   "bonus_fraud": "",
+   "balance_removal": ""
+  }
+ },
+ {
+  "id": "s07",
+  "title": "Provider blocked՝ P2PMultinetwork",
+  "cat": "casino",
+  "tags": {
+   "provider_blocked": "p2p"
+  }
+ },
+ {
+  "id": "s08",
+  "title": "Պրովայդերի բլոկավորումը ակտուալ չէ",
+  "cat": "casino",
+  "tags": {
+   "provider_blocked": "na"
+  }
+ },
+ {
+  "id": "s09",
+  "title": "Provider blocked՝ Skill Games",
+  "cat": "casino",
+  "tags": {
+   "provider_skill": ""
+  }
+ },
+ {
+  "id": "s10",
+  "title": "Refer-friend խարդախություն",
+  "cat": "casino",
+  "tags": {
+   "refer_fraud": ""
+  }
+ },
+ {
+  "id": "s11",
+  "title": "Արգելափակում Refer-friend խարդախության համար",
+  "cat": "casino",
+  "tags": {
+   "blocked_refer": ""
+  }
+ },
+ {
+  "id": "s12",
+  "title": "Retention խարդախություն",
+  "cat": "casino",
+  "tags": {
+   "retention_fraud": ""
+  }
+ },
+ {
+  "id": "s13",
+  "title": "Տեխնիկական խնդիր (INC / RM)",
+  "cat": "casino",
+  "tags": {
+   "tech_issue": ""
+  }
+ },
+ {
+  "id": "s14",
+  "title": "Հակադիր խաղադրույքներ",
+  "cat": "casino",
+  "tags": {
+   "opposite": ""
+  }
+ },
+ {
+  "id": "s15",
+  "title": "Պայմանավորված խաղեր",
+  "cat": "casino",
+  "tags": {
+   "collusion_xy": ""
+  }
+ },
+ {
+  "id": "s16",
+  "title": "Դուրսբերումները՝ միայն CD-ի վերանայումից հետո",
+  "cat": "casino",
+  "tags": {
+   "cd_review": ""
+  }
+ },
+ {
+  "id": "s17",
+  "title": "Խիստ զգուշացում, վճարումը՝ հետո",
+  "cat": "casino",
+  "tags": {
+   "fyi_warn": ""
+  }
+ },
+ {
+  "id": "s18",
+  "title": "Rake race-ի չարաշահում",
+  "cat": "casino",
+  "tags": {
+   "rake_race": ""
+  }
+ },
+ {
+  "id": "s19",
+  "title": "Մրցաշարի խարդախություն",
+  "cat": "casino",
+  "tags": {
+   "tournament_fraud": ""
+  }
+ },
+ {
+  "id": "s20",
+  "title": "Խարդախ օգտատեր",
+  "cat": "casino",
+  "tags": {
+   "fraud_user": ""
+  }
+ },
+ {
+  "id": "s21",
+  "title": "Չարաշահում (ընդհանուր)",
+  "cat": "casino",
+  "tags": {
+   "abuse": ""
+  }
+ },
+ {
+  "id": "s22",
+  "title": "Հաշիվը արգելափակված է (TG թիքեթ)",
+  "cat": "kyc",
+  "tags": {
+   "blocked_tg": ""
+  }
+ },
+ {
+  "id": "s23",
+  "title": "Չի վերիֆիկացված",
+  "cat": "kyc",
+  "tags": {
+   "not_verified": ""
+  }
+ },
+ {
+  "id": "s24",
+  "title": "Ուրիշ անձ է օգտվում հաշվից",
+  "cat": "kyc",
+  "tags": {
+   "ayl_andz": ""
+  }
+ },
+ {
+  "id": "s25",
+  "title": "Ուրիշ անձ է օգտվում հաշվից՝ retention call",
+  "cat": "kyc",
+  "tags": {
+   "ayl_andz_rc": ""
+  }
+ },
+ {
+  "id": "s26",
+  "title": "Տեղյակ չէ խաղային հաշվից՝ retention call",
+  "cat": "kyc",
+  "tags": {
+   "texyak": ""
+  }
+ },
+ {
+  "id": "s27",
+  "title": "Կեղծ օգտատեր",
+  "cat": "kyc",
+  "tags": {
+   "fake_user": ""
+  }
+ },
+ {
+  "id": "s28",
+  "title": "Տվյալների անհամապատասխանություն",
+  "cat": "kyc",
+  "tags": {
+   "tvyalneri": ""
+  }
+ },
+ {
+  "id": "s29",
+  "title": "Օգտատերը 21 տարեկանից փոքր է",
+  "cat": "kyc",
+  "tags": {
+   "under21": ""
+  }
+ },
+ {
+  "id": "s30",
+  "title": "Օգտատերը մահացել է",
+  "cat": "kyc",
+  "tags": {
+   "dead": ""
+  }
+ },
+ {
+  "id": "s31",
+  "title": "Փաստաթուղթը խմբագրված է (Photoshop)",
+  "cat": "kyc",
+  "tags": {
+   "photoshop": ""
+  }
+ },
+ {
+  "id": "s32",
+  "title": "Selfie-ի պահանջ",
+  "cat": "verification",
+  "tags": {
+   "selfie": ""
+  }
+ },
+ {
+  "id": "s33",
+  "title": "Վերիֆիկացիա Betshop-ի միջոցով",
+  "cat": "verification",
+  "tags": {
+   "betshop": ""
+  }
+ },
+ {
+  "id": "s34",
+  "title": "Վերիֆիկացիա Betshop-ի հետ զանգով",
+  "cat": "verification",
+  "tags": {
+   "betshop_call": ""
+  }
+ },
+ {
+  "id": "s35",
+  "title": "Նոր KYC-ի պահանջ",
+  "cat": "verification",
+  "tags": {
+   "new_kyc": ""
+  }
+ },
+ {
+  "id": "s36",
+  "title": "Սպասվում է KYC",
+  "cat": "verification",
+  "tags": {
+   "waiting_kyc": ""
+  }
+ },
+ {
+  "id": "s37",
+  "title": "Վերիֆիկացված հաշիվ",
+  "cat": "verification",
+  "tags": {
+   "verified": ""
+  }
+ },
+ {
+  "id": "s38",
+  "title": "Զանգով ճշտում՝ ով է օգտվում հաշվից",
+  "cat": "verification",
+  "tags": {
+   "zangov": ""
+  }
+ },
+ {
+  "id": "s39",
+  "title": "Օգտատերը մահացել է՝ retention call",
+  "cat": "verification",
+  "tags": {
+   "dead_rc": ""
+  }
+ },
+ {
+  "id": "s40",
+  "title": "Հաշիվը չի ենթարկվում վերաբացման",
+  "cat": "verification",
+  "tags": {
+   "reopen": ""
+  }
+ },
+ {
+  "id": "s41",
+  "title": "Հաշիվը արգելափակվել է ActiveAccessDormant վիճակից",
+  "cat": "verification",
+  "tags": {
+   "aad": ""
+  }
+ },
+ {
+  "id": "s42",
+  "title": "Կրկնակի / կապակցված հաշիվներ",
+  "cat": "multi",
+  "tags": {
+   "duplicate": ""
+  }
+ },
+ {
+  "id": "s43",
+  "title": "Նույն սարքից մի քանի հաշիվ",
+  "cat": "multi",
+  "tags": {
+   "same_device": ""
+  }
+ },
+ {
+  "id": "s44",
+  "title": "Նույն IP-ից մի քանի հաշիվ",
+  "cat": "multi",
+  "tags": {
+   "same_ip": ""
+  }
+ },
+ {
+  "id": "s45",
+  "title": "Նույն սոցիալական քարտի համար",
+  "cat": "multi",
+  "tags": {
+   "same_social": ""
+  }
+ },
+ {
+  "id": "s46",
+  "title": "Հաշվեկշռի հանում (Risk Action)",
+  "cat": "risk",
+  "tags": {
+   "balance_removal": ""
+  }
+ },
+ {
+  "id": "s47",
+  "title": "Հաշվեկշռի ավելացում (Risk Action)",
+  "cat": "risk",
+  "tags": {
+   "balance_adding": ""
+  }
+ },
+ {
+  "id": "s48",
+  "title": "Տեղեկատվական նոթ",
+  "cat": "shared",
+  "tags": {
+   "informative": ""
+  }
+ },
+ {
+  "id": "s49",
+  "title": "Դեպքը հետաքննվում է",
+  "cat": "shared",
+  "tags": {
+   "under_inv": ""
+  }
+ }
+]
+};
+
+/* =====================================================================
+   Application code
+   ===================================================================== */
+(function(){
+'use strict';
+const D=RISK_DATA, SEV=D.severities, STATES=D.states;
+
+/* system-format note lines, one builder per tag (reference values come from the Reference field) */
+const NOTES={
+  black_list:()=>`Black List`,
+  bonus_fraud:(v,c)=>`Bonus Fraud with ${c.idsAll}`,
+  cashback_fraud:()=>`Cashback Fraud`,
+  contracted_p2p:(v,c)=>`Contracted P2P game with ${c.idsAll}`,
+  gumar:(v,c)=>`Gumar e poxancvel ${c.id1} ic ${c.id2} in erkusin el zgushacneluc ev hashivnerum arka notery ditarkeluc heto yntacq ktrvi haytov ( ${c.amt} dram${v==='nobonus'?'':' bonusic'} )${v==='paid'?'(Paid)':''}`,
+  provider_blocked:(v)=>`Provider Blocked / ${v==='live'?'Live Casino':(v==='vs'?'Virtual Sport product':(v==='na'?'Not actual':'P2PMultinetwork'))}`,
+  provider_skill:()=>`Provider blocked / Skill Games`,
+  refer_fraud:(v,c)=>`Refer Friend Fraud with ${c.idsAll}`,
+  blocked_refer:()=>`Blocked for Refer Friend Fraud`,
+  retention_fraud:(v,c)=>`Retention Fraud with ${c.idsAll}`,
+  tech_issue:(v,c)=>`Tech issue / ${c.inc}`,
+  opposite:(v,c)=>`Opposite beting with ${c.idsAll}`,
+  collusion_xy:(v,c)=>`${c.idsComma} hashivneri xaxery ditarkvel en vorpes paymanavorvac , erkusin el zgushacnel , toxnel hamapatasxan notery`,
+  cd_review:()=>`Kanxikacumnery miayn CD-ic heto`,
+  fyi_warn:()=>`FYI/xist zgushacnel voric heto kditarkvi vcharumy`,
+  rake_race:(v,c)=>`Rake race fraud with ${c.idsAll}`,
+  tournament_fraud:()=>`Tournament fraud`,
+  fraud_user:()=>`Fraud user`,
+  abuse:()=>`Չարաշահում`,
+  blocked_tg:(v,c)=>`Blocked / ${c.tg}`,
+  not_verified:(v,c)=>`NOT Verified / ${c.tg}`,
+  ayl_andz:(v,c)=>`Verification / Ayl andz e ogtvum / ${c.tg}`,
+  ayl_andz_rc:(v,c)=>`Verification / Ayl andz e ogtvum (RETENTION CALL) / ${c.tg}`,
+  texyak:(v,c)=>`Verification / Texyak che xaxayin hashvic (RETENTION CALL) / ${c.tg}`,
+  fake_user:(v,c)=>`Verification / Fake user / ${c.tg}`,
+  tvyalneri:(v,c)=>`Verification / Tvyalneri anhamapatasxanutyun / ${c.tg}`,
+  under21:(v,c)=>`Verification / Under 21 / ${c.tg}`,
+  dead:(v,c)=>`Verification / User is dead / ${c.tg}`,
+  photoshop:(v,c)=>`Verification / Photoshop with ${c.idsAll} /`,
+  selfie:()=>`Selfie`,
+  betshop:(v,c)=>`Betshop verification / ${c.tg}`,
+  betshop_call:(v,c)=>`Betshop call verification / ${c.tg}`,
+  new_kyc:()=>`New KYC`,
+  verified:(v,c)=>`Verified / ${c.tg}`,
+  waiting_kyc:(v,c)=>`Waiting for KYC / ${c.tg}`,
+  zangov:(v)=>`Zangov chshtel ov e ogtvum${v==='blot'?' + blotic manramasn harcer tal':''}`,
+  dead_rc:()=>`Verification / User is dead (RETENTION CALL)`,
+  reopen:()=>`Verabacman entaka che`,
+  aad:()=>`Blocked From ActiveAccessDormant`,
+  duplicate:(v,c)=>`Duplicate with ${c.idsAll}`,
+  same_device:(v,c)=>`Same Device with ${c.idsAll}`,
+  same_ip:(v,c)=>`Same IP with ${c.idsAll}`,
+  same_social:(v,c)=>`Same Social Card Number with ${c.idsAll}`,
+  balance_removal:(v,c)=>`Balance Removal Risk Action - ${c.amt} AMD`,
+  balance_adding:(v,c)=>`Balance adding Risk Action - ${c.amt} AMD`,
+  informative:(v,c)=>`FYI / ${c.tg}`,
+  under_inv:()=>`Under investigation`
+};
+
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+const fmt=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00A0');
+const pct1=x=>(Math.round(x*10)/10).toFixed(1).replace('.',',');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reduceMotion=()=>window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad=n=>String(n).padStart(2,'0');
+
+const TAGS=D.tags, TAG={};
+TAGS.forEach(t=>{ TAG[t.id]=t; t.n=t.obs[0]+t.obs[1]+t.obs[2]+t.obs[3]; });
+const SHARED=TAGS.filter(t=>t.cat==='shared');
+const SEV_ORDER=Object.keys(SEV);
+const TOTAL_TAG_NOTES=TAGS.reduce((s,t)=>s+t.n,0);
+
+/* ---------- helpers on tag data ---------- */
+function dist(t){const [a,b,x,o]=t.obs,n=a+b+x+o;return {n,a,b,x,o,pa:n?a/n:0,pb:n?b/n:0,px:n?x/n:0,po:n?o/n:0};}
+function flags(t){
+  const d=dist(t),top=Math.max(d.pa,d.pb,d.px),out=[];
+  if(!d.n) out.push('Տվյալներում չի հանդիպել');
+  else if(d.n<10) out.push('Փոքր նմուշ (n='+d.n+')');
+  else if(top<0.75) out.push('Խառը պատկեր. կարգավիճակը կախված է դեպքից');
+  return out;
+}
+function obsText(t){
+  const d=dist(t),parts=[]; if(!d.n) return 'Տվյալներում օրինակ չկա';
+  if(d.b) parts.push('Blocked՝ '+Math.round(d.pb*100)+'%');
+  if(d.x) parts.push('BlockedForTransaction՝ '+Math.round(d.px*100)+'%');
+  if(d.a) parts.push('Active՝ '+Math.round(d.pa*100)+'%');
+  return parts.join(', ')+' ('+fmt(d.n)+' նոթ)';
+}
+function barHTML(t){
+  const d=dist(t); if(!d.n) return '';
+  return '<div class="bar" role="img" aria-label="'+esc(obsText(t))+'">'
+   +(d.b?'<i class="b" style="width:'+(d.pb*100).toFixed(1)+'%"></i>':'')+(d.x?'<i class="t" style="width:'+(d.px*100).toFixed(1)+'%"></i>':'')
+   +(d.a?'<i class="a" style="width:'+(d.pa*100).toFixed(1)+'%"></i>':'')+(d.o?'<i class="o" style="width:'+(d.po*100).toFixed(1)+'%"></i>':'')+'</div>';
+}
+const stateBadge=name=>'<span class="state-badge state-'+STATES[name].css+'">'+esc(name)+'</span>';
+const defaultVariant=id=>TAG[id].variants?TAG[id].variants[0].id:'';
+const variantLabel=(t,v)=>t.variants&&v!==undefined?((t.variants.find(x=>x.id===v)||{}).label||''):'';
+
+/* ---------- decision engine ---------- */
+function decide(sel){
+  const items=Object.keys(sel).map(id=>({t:TAG[id],v:sel[id]}));
+  if(!items.length) return null;
+  items.sort((p,q)=>SEV[q.t.sev].rank-SEV[p.t.sev].rank || STATES[q.t.state].priority-STATES[p.t.state].priority || q.t.n-p.t.n);
+  const top=items[0];
+  return {items,top,state:top.t.state,reason:top.t.reason};
+}
+function refSample(items){
+  /* sample reference built from format placeholders only (no real IDs) */
+  const refs=[]; items.forEach(i=>i.t.ref.forEach(k=>refs.push(k)));
+  const out=[];
+  if(refs.indexOf('TG')>=0||refs.indexOf('TG_OPT')>=0) out.push('TG-XXXXXX');
+  if(refs.indexOf('TICKET')>=0) out.push('INC-XXXXXX');
+  if(refs.indexOf('IDS')>=0||refs.indexOf('TRANSFER')>=0) out.push('XXXXXX XXXXXX');
+  if(refs.indexOf('AMT')>=0||refs.indexOf('TRANSFER')>=0) out.push('XXXX AMD');
+  return out.join(' ');
+}
+function refFormat(items){
+  const out=[]; items.forEach(i=>i.t.ref.forEach(k=>{ const f=D.refTypes[k].fmt; if(f!=='—'&&out.indexOf(f)<0) out.push(f); }));
+  return out.length?out.join(' / '):'—';
+}
+function parseRef(str){
+  let rest=(str||'').trim(); const out={tg:[],inc:[],ids:[],amt:''};
+  const am=rest.match(/(\d{1,3}(?:[\s.,]\d{3})+|\d+|X{3,})\s*(AMD|dram|դրամ)/i);
+  if(am){ out.amt=/^X/i.test(am[1])?am[1].toUpperCase():am[1].replace(/[\s.,]/g,''); rest=rest.replace(am[0],' '); }
+  rest=rest.replace(/\b(TG|INC|RM|JIRA)\s*-?\s*(\d+|X{3,})\b/gi,(m,p,n)=>{ const k=p.toUpperCase()+'-'+String(n).toUpperCase(); (k.indexOf('TG-')===0?out.tg:out.inc).push(k); return ' '; });
+  (rest.match(/\b(\d{3,}|X{3,})\b/gi)||[]).forEach(x=>out.ids.push(x.toUpperCase()));
+  return out;
+}
+function ctx(){
+  const p=parseRef($('#ref-input').value);
+  return {tg:p.tg[0]||'TG-XXXXXX',inc:p.inc[0]||'INC-XXXXXX',
+    idsAll:p.ids.length?p.ids.join(' '):'<ID> <ID>',idsComma:p.ids.length?p.ids.join(', '):'<ID>, <ID>',
+    id1:p.ids[0]||'<ID-ից>',id2:p.ids[1]||'<ID-ին>',amt:p.amt||'<գումար>'};
+}
+
+const state={sev:'all',q:'',sel:{},preset:null,mStatus:'all',mQuery:''};
+
+/* ---------- header + KPIs ---------- */
+function renderHeader(){
+  $('#eyebrow').textContent=D.meta.eyebrow; $('#title').textContent=D.meta.title; $('#subtitle').textContent=D.meta.subtitle;
+  document.title=D.meta.title;
+  const cov=D.meta.coveragePct;
+  const k=[
+    {v:D.categories.length,u:'Կատեգորիա',s:'Main divisions'},
+    {v:TAGS.length,u:'Թեգ',s:'Multi-Tag System'},
+    {v:(cov%1===0?cov:pct1(cov))+'%',u:'Ծածկույթ',s:'Product + KYC + Network'},
+    {v:D.scenarios.length,u:'Սցենար',s:'24/7 SOP Flow'}
+  ];
+  $('#kpis').innerHTML=k.map(x=>'<div class="kpi"><div class="kpi-v">'+x.v+'<small>'+x.u+'</small></div><div class="kpi-s">'+x.s+'</div></div>').join('');
+  $('#foot').textContent='Տվյալների աղբյուր՝ '+D.meta.source+' ('+fmt(D.meta.totalNotes)+' նոթ)։ Դատարկ նոթերը («.», «Այլ», «Other») և հազվադեպ նոթերը առանձին տեսակ չեն. դրանք ներառված են այլ տեսակների մեջ։ Ռիսկի մակարդակները, առաջարկվող գործողությունները և համակարգային պատճառների ձևակերպումները կազմված են նոթերի վերլուծությամբ և պետք է հաստատվեն SOP պատասխանատուի կողմից։ Account State-ը դիտարկված PlayerStatus-ի գերակշռող արժեքն է։';
+}
+
+/* ---------- Tab 1 ---------- */
+const matchesQuery=t=>{ if(!state.q) return true; const s=(t.label+' '+t.code+' '+t.def+' '+t.action+' '+t.reason+' '+t.short).toLowerCase(); return s.indexOf(state.q)>=0; };
+function renderFilters(){
+  const counts={all:0}; SEV_ORDER.forEach(s=>counts[s]=0);
+  TAGS.filter(matchesQuery).forEach(t=>{counts.all++;counts[t.sev]++;});
+  let html='<button type="button" class="chip" data-sev="all" aria-pressed="'+(state.sev==='all')+'">Բոլորը (All)<span class="cnt">'+counts.all+'</span></button>';
+  SEV_ORDER.forEach(s=>{ html+='<button type="button" class="chip sev-'+s+'" data-sev="'+s+'" aria-pressed="'+(state.sev===s)+'">'+SEV[s].label+'<span class="cnt">'+counts[s]+'</span></button>'; });
+  $('#sev-filters').innerHTML=html;
+}
+function cardHTML(t){
+  const fl=flags(t).map(f=>'<span class="flag">'+esc(f)+'</span>').join('');
+  const subs=t.subs.map(s=>'<span class="sub-chip">'+esc(s)+'</span>').join('');
+  return '<article class="card sev-'+t.sev+'" data-tag="'+t.id+'" data-sev="'+t.sev+'">'
+   +'<div class="card-top"><div><h3>'+esc(t.label)+'</h3><div class="slug">'+esc(t.code)+'</div></div><span class="badge">'+SEV[t.sev].label+'</span></div>'
+   +'<div><div class="lbl">Operational Definition / Trigger Criteria</div><p>'+esc(t.def)+'</p></div>'
+   +'<div class="not"><div class="lbl">Երբ չկիրառել</div><p>'+esc(t.not)+'</p></div>'
+   +'<div><div class="lbl">Required Action / Account Impact</div><p>'+esc(t.action)+'</p></div>'
+   +'<div class="impact">'+stateBadge(t.state)+'<span>Պատճառ՝ <code>'+esc(t.reason)+'</code></span></div>'
+   +'<div class="obs"><div class="lbl">Դիտարկված կարգավիճակ</div>'+barHTML(t)+'<div class="obs-t">'+esc(obsText(t))+'</div></div>'
+   +(fl?'<div class="subs">'+fl+'</div>':'')
+   +(subs?'<div class="subs">'+subs+'</div>':'')
+   +'<div class="card-foot"><span>'+fmt(t.n)+' նոթ ('+pct1(t.n/D.meta.totalNotes*100)+'%)</span><button type="button" class="btn btn-sm no-print" data-try="'+t.id+'">Փորձել սիմուլյատորում</button></div>'
+   +'</article>';
+}
+function renderTaxonomy(){
+  $('#taxonomy').innerHTML=D.categories.map(c=>{
+    const own=TAGS.filter(t=>t.cat===c.id), all=own.concat(SHARED);
+    return '<section class="cat" data-cat="'+c.id+'">'
+     +'<h2 class="cat-head"><button type="button" class="cat-toggle" aria-expanded="false" aria-controls="cb-'+c.id+'">'
+     +'<span><span class="cat-title">'+esc(c.name)+'</span><span class="cat-desc" style="display:block">'+esc(c.desc)+'</span></span>'
+     +'<span class="cat-meta"><span class="count-badge cm-count">'+all.length+' թեգ</span><span class="cm-notes">'+fmt(own.reduce((s,t)=>s+t.n,0))+' նոթ</span><span class="chev" aria-hidden="true"></span></span>'
+     +'</button></h2><div class="cat-body" id="cb-'+c.id+'"><div class="cards">'+all.map(cardHTML).join('')+'</div></div></section>';
+  }).join('');
+}
+function bindTaxonomy(){
+  $('#taxonomy').addEventListener('click',e=>{
+    const tg=e.target.closest('.cat-toggle'); if(tg){ const cat=tg.closest('.cat'); setCat(cat,!cat.classList.contains('open')); return; }
+    const tr=e.target.closest('[data-try]'); if(tr){ const id=tr.getAttribute('data-try'); loadTags({[id]:defaultVariant(id)},null); showTab('sim',true); }
+  });
+  $('#sev-filters').addEventListener('click',e=>{ const b=e.target.closest('[data-sev]'); if(!b) return; state.sev=b.getAttribute('data-sev'); applyFilter(); });
+  $('#tag-search').addEventListener('input',e=>{ state.q=e.target.value.trim().toLowerCase(); applyFilter(); });
+  $('#expand-all').addEventListener('click',()=>setAll(true));
+  $('#collapse-all').addEventListener('click',()=>setAll(false));
+}
+function setCat(cat,open){ cat.classList.toggle('open',open); const b=$('.cat-toggle',cat); if(b) b.setAttribute('aria-expanded',String(open)); }
+function setAll(open){ $$('.cat:not(.is-hidden)').forEach(c=>setCat(c,open)); }
+function applyFilter(){
+  const shown=new Set();
+  $$('.card').forEach(c=>{
+    const t=TAG[c.getAttribute('data-tag')];
+    const ok=(state.sev==='all'||t.sev===state.sev)&&matchesQuery(t);
+    c.classList.toggle('is-hidden',!ok); c.hidden=!ok; if(ok) shown.add(t.id);
+  });
+  $$('.cat').forEach(cat=>{
+    const vis=$$('.card:not(.is-hidden)',cat).length;
+    cat.classList.toggle('is-hidden',vis===0); cat.hidden=vis===0;
+    $('.cm-count',cat).textContent=vis+' թեգ';
+    if((state.sev!=='all'||state.q) && vis>0) setCat(cat,true);
+  });
+  renderFilters();
+  $('#filter-note').textContent=(state.sev==='all'&&!state.q)?'Ցուցադրվում է բոլոր '+TAGS.length+' թեգը։':'Ցուցադրվում է '+shown.size+' թեգ '+TAGS.length+'-ից։';
+}
+
+/* ---------- Tab 2 ---------- */
+function renderPresets(){
+  const groups=D.categories.map(c=>({id:c.id,name:c.name})).concat([{id:'shared',name:D.sharedGroup.name}]);
+  $('#presets').innerHTML=groups.map(g=>{
+    const list=D.scenarios.filter(sc=>sc.cat===g.id); if(!list.length) return '';
+    return '<div class="preset-group"><div class="preset-label">'+esc(g.name)+'</div><div class="presets">'
+      +list.map(sc=>'<button type="button" class="preset" data-sc="'+sc.id+'" aria-pressed="false">'+esc(sc.title)+'</button>').join('')+'</div></div>';
+  }).join('');
+}
+/* multi-select per category: a toggle button opens a checkbox list; any number of tags can be ticked in any category */
+function renderSelector(){
+  const groups=D.categories.map(c=>({id:c.id,name:c.name,tags:TAGS.filter(t=>t.cat===c.id)})).concat([{id:'shared',name:D.sharedGroup.name,tags:SHARED}]);
+  $('#selector').innerHTML=groups.map(g=>
+    '<div class="ms" data-group="'+g.id+'"><div class="ms-label">'+esc(g.name)+'</div>'
+    +'<button type="button" class="ms-btn" aria-expanded="false" aria-controls="ms-panel-'+g.id+'"><span class="ms-text">Ընտրեք թեգեր…</span><span class="chev" aria-hidden="true"></span></button>'
+    +'<div class="ms-panel" id="ms-panel-'+g.id+'" hidden>'
+    +(g.tags.length>8?'<input class="ms-filter" type="search" placeholder="Որոնել թեգ" aria-label="Որոնել թեգ">':'')
+    +'<div class="ms-list" role="group" aria-label="'+esc(g.name)+'">'
+    +g.tags.map(t=>'<label class="ms-opt sev-'+t.sev+'" data-opt="'+t.id+'"><input type="checkbox" data-tag="'+t.id+'"><span class="dot" aria-hidden="true"></span><span class="ms-name">'+esc(t.label)+'</span></label>').join('')
+    +'</div><div class="ms-foot"><button type="button" class="btn btn-sm btn-ghost" data-clear="'+g.id+'">Մաքրել</button><button type="button" class="btn btn-sm" data-close="'+g.id+'">Փակել</button></div></div>'
+    +'<div class="ms-sel" data-sel="'+g.id+'"></div></div>').join('');
+}
+function setPanel(ms,open){ const p=$('.ms-panel',ms), b=$('.ms-btn',ms); p.hidden=!open; b.setAttribute('aria-expanded',String(open)); }
+function syncSelector(){
+  TAGS.forEach(t=>{ const cb=$('input[data-tag="'+t.id+'"]'); if(cb) cb.checked=has(state.sel,t.id); });
+  $$('.ms').forEach(ms=>{
+    const g=ms.getAttribute('data-group'), ids=Object.keys(state.sel).filter(id=>TAG[id].cat===g);
+    $('.ms-text',ms).textContent=ids.length?ids.length+' թեգ ընտրված':'Ընտրեք թեգեր…';
+    $('.ms-btn',ms).classList.toggle('has-sel',ids.length>0);
+    $('.ms-sel',ms).textContent=ids.map(id=>TAG[id].short).join(', ');
+  });
+  $$('.preset').forEach(b=>b.setAttribute('aria-pressed',String(b.getAttribute('data-sc')===state.preset)));
+}
+function openSelectedGroups(){
+  $$('.ms').forEach(ms=>{ const g=ms.getAttribute('data-group'); if(Object.keys(state.sel).some(id=>TAG[id].cat===g)) setPanel(ms,true); });
+}
+function buildNote(res){
+  const c=ctx(), d=new Date();
+  const stamp=pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  const refVal=$('#ref-input').value.trim();
+  const names=res.items.map(i=>{ const vl=i.t.variants&&i.v?variantLabel(i.t,i.v):''; return i.t.short+(vl&&i.v?' ('+vl+')':''); });
+  const lines=[
+    'CASINO RISK NOTE | '+stamp,
+    'Account State: '+res.state,
+    'System Reason: '+res.reason,
+    'Selected Tags ('+res.items.length+'): '+names.join('; '),
+    'Required Next Step: '+res.top.t.action,
+    'Reference: '+(refVal||'TG-XXXXXX'),
+    '---'
+  ];
+  res.items.forEach(i=>lines.push(NOTES[i.t.id](i.v,c)));
+  return lines;
+}
+const noteHTML=lines=>lines.map(l=>esc(l).replace(/(TG-X{3,}|INC-X{3,}|\bX{4,}\b|&lt;[^&]*?&gt;)/g,'<span class="ph">$1</span>')).join('\n');
+function renderOutput(){
+  const res=decide(state.sel);
+  const card=$('#state-card');
+  if(!res){
+    card.className='state-card'; $('#o-state').textContent='—'; $('#o-why').textContent='Ընտրեք թեգ կամ արագ սցենար։';
+    $('#o-reason').textContent='—'; $('#o-count').textContent='0'; $('#o-tags').innerHTML='<span class="none-note">Թեգեր ընտրված չեն</span>';
+    $('#o-conf').hidden=true; $('#o-note').textContent=''; $('#o-obs').textContent=''; return;
+  }
+  const {items,top,state:st,reason}=res;
+  card.className='state-card state-'+STATES[st].css;
+  $('#o-state').textContent=st;
+  $('#o-why').textContent=STATES[st].hy+'. Որոշող թեգ՝ '+top.t.short+' ('+SEV[top.t.sev].label+')։';
+  $('#o-reason').textContent=reason; $('#o-count').textContent=items.length;
+  $('#o-tags').innerHTML=items.map(i=>{
+    const vs=i.t.variants?'<select class="variant" data-var="'+i.t.id+'" aria-label="Տարբերակ՝ '+esc(i.t.short)+'">'+i.t.variants.map(v=>'<option value="'+esc(v.id)+'"'+(v.id===i.v?' selected':'')+'>'+esc(v.label)+'</option>').join('')+'</select>':'';
+    return '<span class="o-tag sev-'+i.t.sev+'"><span>'+esc(i.t.short)+'</span>'+vs+'<button type="button" data-remove="'+i.t.id+'" aria-label="Հեռացնել">×</button></span>';
+  }).join('');
+  const present=Object.keys(state.sel);
+  const hits=D.conflicts.filter(c=>present.indexOf(c[0])>=0&&present.indexOf(c[1])>=0).map(c=>c[2]);
+  const conf=$('#o-conf'); conf.hidden=!hits.length; conf.textContent=hits.join(' ');
+  $('#o-note').innerHTML=noteHTML(buildNote(res));
+  $('#o-obs').textContent='Դիտարկված՝ '+obsText(top.t);
+}
+function refresh(){ syncSelector(); renderOutput(); }
+function loadTags(map,presetId,keepRef){
+  state.sel={}; Object.keys(map).forEach(k=>{state.sel[k]=map[k];}); state.preset=presetId;
+  const res=decide(state.sel);
+  if(!keepRef) $('#ref-input').value=res?refSample(res.items):'';
+  refresh(); openSelectedGroups();
+}
+function loadScenario(id){ const s=D.scenarios.find(x=>x.id===id); if(s) loadTags(s.tags,id); }
+async function copyText(text){
+  try{ if(navigator.clipboard&&window.isSecureContext){ await navigator.clipboard.writeText(text); return true; } throw new Error('no clipboard'); }
+  catch(err){ try{ const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return !!ok; }catch(e2){ return false; } }
+}
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(t._t); t._t=setTimeout(()=>{t.hidden=true;},1900); }
+function bindSimulator(){
+  $('#presets').addEventListener('click',e=>{ const b=e.target.closest('[data-sc]'); if(b) loadScenario(b.getAttribute('data-sc')); });
+  $('#reset-btn').addEventListener('click',()=>{ state.sel={}; state.preset=null; $('#ref-input').value=''; refresh(); $$('.ms').forEach(ms=>setPanel(ms,false)); });
+  $('#selector').addEventListener('change',e=>{
+    const cb=e.target.closest('input[data-tag]'); if(!cb) return;
+    const id=cb.getAttribute('data-tag'); if(cb.checked) state.sel[id]=defaultVariant(id); else delete state.sel[id];
+    state.preset=null; refresh();
+  });
+  $('#selector').addEventListener('click',e=>{
+    const btn=e.target.closest('.ms-btn');
+    if(btn){ const ms=btn.closest('.ms'); setPanel(ms,$('.ms-panel',ms).hidden); return; }
+    const clr=e.target.closest('[data-clear]');
+    if(clr){ const g=clr.getAttribute('data-clear'); Object.keys(state.sel).filter(id=>TAG[id].cat===g).forEach(id=>delete state.sel[id]); state.preset=null; refresh(); return; }
+    const cls=e.target.closest('[data-close]');
+    if(cls){ const ms=cls.closest('.ms'); setPanel(ms,false); $('.ms-btn',ms).focus(); }
+  });
+  $('#selector').addEventListener('input',e=>{
+    const f=e.target.closest('.ms-filter'); if(!f) return; const q=f.value.trim().toLowerCase();
+    $$('.ms-opt',f.closest('.ms')).forEach(o=>{ const t=TAG[o.getAttribute('data-opt')]; o.hidden=!!q&&(t.label+' '+t.short+' '+t.code).toLowerCase().indexOf(q)<0; });
+  });
+  $('#selector').addEventListener('keydown',e=>{
+    if(e.key!=='Escape') return; const ms=e.target.closest('.ms'); if(!ms||$('.ms-panel',ms).hidden) return; setPanel(ms,false); $('.ms-btn',ms).focus();
+  });
+  $('#o-tags').addEventListener('change',e=>{
+    const sv=e.target.closest('select[data-var]'); if(!sv) return; const id=sv.getAttribute('data-var');
+    state.sel[id]=sv.value; state.preset=null; refresh(); const ns=$('#o-tags select[data-var="'+id+'"]'); if(ns) ns.focus();
+  });
+  $('#o-tags').addEventListener('click',e=>{ const b=e.target.closest('[data-remove]'); if(!b) return; delete state.sel[b.getAttribute('data-remove')]; state.preset=null; refresh(); });
+  $('#ref-input').addEventListener('input',renderOutput);
+  $('#copy-btn').addEventListener('click',async()=>{
+    const res=decide(state.sel); if(!res){ toast('Նախ ընտրեք թեգ'); return; }
+    const ok=await copyText(buildNote(res).join('\n')), btn=$('#copy-btn');
+    btn.textContent=ok?'Պատճենված է ✓':'Չհաջողվեց. պատճենեք ձեռքով';
+    toast(ok?'Պատճենված է ✓':'Պատճենումը չհաջողվեց');
+    clearTimeout(btn._t); btn._t=setTimeout(()=>{ btn.textContent='Պատճենել Casino Risk Նոթը (Copy Note)'; },1900);
+  });
+}
+
+/* ---------- Tab 3 ---------- */
+function scenarioRow(s,i){
+  const res=decide(s.tags);
+  return {s,i,res,state:res.state,reason:res.reason,fmtRef:refFormat(res.items),text:res.items.map(x=>x.t.label).join(' ')};
+}
+function renderMatrixControls(){
+  const rows=D.scenarios.map(scenarioRow), counts={all:rows.length};
+  Object.keys(STATES).forEach(k=>counts[k]=rows.filter(r=>r.state===k).length);
+  let html='<button type="button" class="chip" data-ms="all" aria-pressed="true">Բոլորը<span class="cnt">'+counts.all+'</span></button>';
+  Object.keys(STATES).forEach(k=>{ if(counts[k]) html+='<button type="button" class="chip" data-ms="'+esc(k)+'" aria-pressed="false">'+esc(k)+'<span class="cnt">'+counts[k]+'</span></button>'; });
+  $('#m-status').innerHTML=html;
+  $('#m-status').addEventListener('click',e=>{ const b=e.target.closest('[data-ms]'); if(!b) return; state.mStatus=b.getAttribute('data-ms'); $$('#m-status .chip').forEach(c=>c.setAttribute('aria-pressed',String(c.getAttribute('data-ms')===state.mStatus))); renderMatrix(); });
+  $('#m-search').addEventListener('input',e=>{ state.mQuery=e.target.value.trim().toLowerCase(); renderMatrix(); });
+  $('#m-body').addEventListener('click',e=>{ const b=e.target.closest('[data-load]'); if(b) openScenario(b.getAttribute('data-load')); });
+}
+function openScenario(id){ loadScenario(id); showTab('sim',true); }
+function renderMatrix(){
+  const q=state.mQuery;
+  const rows=D.scenarios.map(scenarioRow).filter(r=>{
+    if(state.mStatus!=='all'&&r.state!==state.mStatus) return false;
+    return !q||(r.s.title+' '+r.reason+' '+r.text+' '+r.state+' '+r.fmtRef).toLowerCase().indexOf(q)>=0;
+  });
+  $('#m-body').innerHTML=rows.length?rows.map(r=>{
+    const tags=r.res.items.map(x=>{ const vl=x.t.variants&&x.v?variantLabel(x.t,x.v):''; return '<span class="mini sev-'+x.t.sev+'">'+esc(x.t.short)+(vl?' ('+esc(vl)+')':'')+'</span>'; }).join('');
+    return '<tr data-sc="'+r.s.id+'"><td class="n">'+(r.i+1)+'</td><td>'+esc(r.s.title)+'</td><td>'+stateBadge(r.state)+'</td><td><code>'+esc(r.reason)+'</code></td>'
+      +'<td><div class="mini-tags">'+tags+'</div></td><td class="fmt">'+esc(r.fmtRef)+'</td>'
+      +'<td class="col-act"><button type="button" class="btn btn-sm" data-load="'+r.s.id+'">Load in Simulator</button></td></tr>';
+  }).join(''):'<tr class="empty-row"><td colspan="7">Ոչինչ չի գտնվել։ Փոխեք որոնումը կամ ընտրեք «Բոլորը»։</td></tr>';
+}
+
+/* ---------- tabs ---------- */
+function showTab(name,scroll){
+  $$('.tab').forEach(t=>{ const on=t.getAttribute('data-tab')===name; t.setAttribute('aria-selected',String(on)); t.tabIndex=on?0:-1; });
+  $$('.panel').forEach(p=>{ p.hidden=p.id!=='panel-'+name; });
+  if(scroll) $('.tabs').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'start'});
+}
+function bindTabs(){
+  const tabs=$$('.tab');
+  tabs.forEach((t,i)=>{
+    t.addEventListener('click',()=>showTab(t.getAttribute('data-tab')));
+    t.addEventListener('keydown',e=>{
+      let n=null; if(e.key==='ArrowRight') n=(i+1)%tabs.length; else if(e.key==='ArrowLeft') n=(i-1+tabs.length)%tabs.length; else if(e.key==='Home') n=0; else if(e.key==='End') n=tabs.length-1;
+      if(n===null) return; e.preventDefault(); tabs[n].focus(); showTab(tabs[n].getAttribute('data-tab'));
+    });
+  });
+}
+function init(){
+  renderHeader(); renderTaxonomy(); bindTaxonomy(); applyFilter();
+  renderPresets(); renderSelector(); bindSimulator();
+  renderMatrixControls(); renderMatrix(); bindTabs();
+  $('#print-btn').addEventListener('click',()=>window.print());
+  refresh();
+}
+init();
+})();
+</script>
+</body>
+</html>
