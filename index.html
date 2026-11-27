@@ -24,7 +24,7 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
-html{scroll-padding-top:84px}
+html{scroll-padding-top:98px}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
 h1,h2,h3,h4,p{margin:0}
@@ -94,10 +94,13 @@ h1{font-size:26px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
 .kp-text{margin-top:16px;font-size:16px;line-height:1.6;max-width:70ch}
 
 /* tabs */
-.tabs{position:sticky;top:10px;z-index:30;display:flex;gap:6px;background:rgba(34,31,29,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--border-strong);padding:5px;border-radius:12px;width:fit-content;max-width:100%;overflow-x:auto;margin-bottom:20px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
-.tab{border:0;background:transparent;color:var(--muted);padding:9px 18px;border-radius:9px;cursor:pointer;font-weight:500;white-space:nowrap}
-.tab:hover{color:var(--text)}
-.tab[aria-selected="true"]{background:var(--accent);color:#0b0b0b;font-weight:600}
+.tabs{position:sticky;top:10px;z-index:30;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:rgba(45,41,38,.96);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.24);padding:6px;border-radius:14px;width:100%;margin-bottom:22px;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+.tab{border:0;background:transparent;color:#DDD4C9;padding:10px 14px;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center;transition:background .15s,color .15s,box-shadow .15s}
+.tab .tab-t{font-size:15.5px;font-weight:700;letter-spacing:.005em;line-height:1.3}
+.tab .tab-s{font-size:12.5px;font-weight:500;opacity:.85;line-height:1.3}
+.tab:hover{background:rgba(255,255,255,.07);color:#fff}
+.tab[aria-selected="true"]{background:var(--accent);color:#0b0b0b;box-shadow:0 4px 16px rgba(255,122,26,.4)}
+@media (max-width:640px){.tabs{top:6px;gap:4px;padding:4px}.tab{padding:9px 4px}.tab .tab-t{font-size:13px;line-height:1.25}.tab .tab-s{display:none}}
 .panel{padding-bottom:40px}
 .print-only{display:none}
 
@@ -118,7 +121,7 @@ h1{font-size:26px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
 .filter-note{color:var(--faint);font-size:13px;margin-bottom:14px}
 
 /* accordions */
-.cat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;scroll-margin-top:84px;transition:border-color .15s,box-shadow .15s}
+.cat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;scroll-margin-top:98px;transition:border-color .15s,box-shadow .15s}
 .cat.open{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 0 1px rgba(var(--accent-rgb),.12)}
 .cat-head{font-size:inherit;font-weight:inherit}
 .cat-toggle{all:unset;box-sizing:border-box;display:flex;width:100%;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;cursor:pointer}
@@ -133,7 +136,7 @@ h1{font-size:26px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
 .cat-body{display:none;padding:4px 22px 22px;border-top:1px solid var(--border)}
 .cat.open .cat-body{display:block}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:16px}
-.card{background:var(--bg);border:1px solid var(--border);border-left:3px solid rgba(var(--sc-rgb),.8);border-radius:12px;padding:16px 18px 16px 16px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:96px;transition:border-color .15s,background .15s,transform .15s}
+.card{background:var(--bg);border:1px solid var(--border);border-left:3px solid rgba(var(--sc-rgb),.8);border-radius:12px;padding:16px 18px 16px 16px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:110px;transition:border-color .15s,background .15s,transform .15s}
 .card:hover{background:#1D1A18;border-color:rgba(255,255,255,.2);border-left-color:var(--sc);transform:translateY(-1px)}
 .card.flash{box-shadow:0 0 0 2px var(--accent)}
 .card-desc{color:#CDC3B7;font-size:14.5px;line-height:1.6}
@@ -182,7 +185,7 @@ select.variant,.field input[type=text]{background:#12100F;border:1px solid var(-
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:4px}
 .field input[type=text]{width:100%;padding:9px 12px;font-family:var(--mono)}
 .hint{font-size:12.5px;color:var(--faint);margin-top:6px}
-.out{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow-y:auto;scroll-margin-top:84px}
+.out{position:sticky;top:92px;max-height:calc(100vh - 108px);overflow-y:auto;scroll-margin-top:98px}
 .state-card{border-radius:12px;padding:16px 18px;background:rgba(var(--accent-rgb),.07);border:1px solid var(--border-strong);border-left:6px solid var(--stc,var(--faint))}
 .state-card .k{font-size:13px;color:var(--muted)}
 .state-card .v{font-size:24px;font-weight:700;line-height:1.25;margin-top:2px;color:var(--stc,var(--text))}
@@ -343,9 +346,9 @@ button.preset-label{border:0;cursor:pointer;font-family:inherit;text-align:left;
   <div class="kpi-panel" id="kpi-panel" role="region" aria-label="Ցուցանիշի մանրամասներ" hidden></div>
 
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-tax" data-tab="tax" aria-controls="panel-tax" aria-selected="true">1. Taxonomy Explorer (Կատեգորիաներ և Թեգեր)</button>
-    <button class="tab" role="tab" id="tab-sim" data-tab="sim" aria-controls="panel-sim" aria-selected="false" tabindex="-1">2. Live Flow Simulator (Սիմուլյատոր)</button>
-    <button class="tab" role="tab" id="tab-matrix" data-tab="matrix" aria-controls="panel-matrix" aria-selected="false" tabindex="-1">3. SOP Matrix (Գործառնական Քարտեզ)</button>
+    <button class="tab" role="tab" id="tab-tax" data-tab="tax" aria-controls="panel-tax" aria-selected="true" aria-label="Taxonomy Explorer (Կատեգորիաներ և Թեգեր)"><span class="tab-t">Taxonomy Explorer</span><span class="tab-s">Կատեգորիաներ և Թեգեր</span></button>
+    <button class="tab" role="tab" id="tab-sim" data-tab="sim" aria-controls="panel-sim" aria-selected="false" tabindex="-1" aria-label="Live Flow Simulator (Սիմուլյատոր)"><span class="tab-t">Live Flow Simulator</span><span class="tab-s">Սիմուլյատոր</span></button>
+    <button class="tab" role="tab" id="tab-matrix" data-tab="matrix" aria-controls="panel-matrix" aria-selected="false" tabindex="-1" aria-label="SOP Matrix (Գործառնական Քարտեզ)"><span class="tab-t">SOP Matrix</span><span class="tab-s">Գործառնական Քարտեզ</span></button>
   </div>
 
   <!-- TAB 1 -->
@@ -1474,7 +1477,7 @@ function renderMatrix(){
 function showTab(name,scroll){
   $$('.tab').forEach(t=>{ const on=t.getAttribute('data-tab')===name; t.setAttribute('aria-selected',String(on)); t.tabIndex=on?0:-1; });
   $$('.panel').forEach(p=>{ p.hidden=p.id!=='panel-'+name; });
-  if(scroll){ const el=$('#panel-'+name), y=el.getBoundingClientRect().top+window.scrollY-84; window.scrollTo({top:Math.max(0,y),behavior:reduceMotion()?'auto':'smooth'}); }
+  if(scroll){ const el=$('#panel-'+name), y=el.getBoundingClientRect().top+window.scrollY-98; window.scrollTo({top:Math.max(0,y),behavior:reduceMotion()?'auto':'smooth'}); }
 }
 function bindTabs(){
   const tabs=$$('.tab');
